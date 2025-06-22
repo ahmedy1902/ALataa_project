@@ -1,0 +1,147 @@
+﻿@* @{ *@
+@*     ViewData["Title"] = $" {Model}"; *@
+@* } *@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"] - Al Attaa Platform</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background: #121212;
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            background: rgba(40, 40, 40, 0.5); /* شفافية بنسبة 50% */
+            border-bottom: 2px solid #00d0ff;
+            backdrop-filter: blur(10px); /* تأثير الضباب */
+        }
+        .container {
+            flex: 1;
+        }
+        .card {
+            background: rgba(60, 60, 60, 0.5); /* شفافية بنسبة 50% */
+            backdrop-filter: blur(10px); /* تأثير الضباب */
+            border: none;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0px 4px 10px rgba(255, 64, 129, 0.3);
+        }
+        footer {
+            background: rgba(40, 40, 40, 0.5); /* شفافية بنسبة 50% */
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            text-align: center;
+            border-top: 2px solid #00d0ff;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #00d0ff;
+        }
+        input, select {
+            background: rgba(34, 34, 34, 0.5); /* شفافية بنسبة 50% */
+            backdrop-filter: blur(10px);
+            color: #fff;
+            border: 1px solid #00d0ff;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            outline: none;
+        }
+        input:focus, select:focus {
+            border-color: #ffffff;
+            box-shadow: 0px 0px 5px #00d0ff;
+        }
+        .btn-success {
+            background: #00d0ff;
+            border: none;
+            padding: 12px 20px;
+            font-size: 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+        }
+        .btn-success:hover {
+            background: #ffffff;
+            color: #00d0ff;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand fs-4 fw-bold" asp-area="" asp-controller="Home" asp-action="Index">Al Attaa Platform</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav flex-grow-1">
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Staffs" asp-action="Index">Staff</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Departments" asp-action="Index">Departments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Patients" asp-action="Index">Patients</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Bills" asp-action="Index">Bills</a>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav">
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <li class="nav-item">
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-flex">
+                                <button type="submit" class="btn btn-outline-danger">Logout</button>
+                            </form>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="btn btn-outline-primary me-2" asp-controller="Account" asp-action="Login">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-outline-success" asp-controller="Account" asp-action="Register">Register</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-12">
+                <div class="card">
+                    @RenderBody()
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-auto">
+        <p class="mb-0">&copy; 2025 - Al Attaa Platform - Learn & Grow 🚀</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    @RenderSection("Scripts", required: false)
+
+</body>
+</html>
