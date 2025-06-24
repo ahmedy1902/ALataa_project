@@ -77,6 +77,15 @@ public class AccountController : Controller
 
         if (result.Succeeded)
         {
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user != null)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                if (roles.Contains("Beneficiary"))
+                {
+                    return Redirect("https://survey123.arcgis.com/share/1b6326b33d2b4213bf757d6780a0f12a");
+                }
+            }
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
