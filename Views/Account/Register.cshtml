@@ -3,7 +3,7 @@
 
 @{
     ViewData["Title"] = "Register";
-    // Layout = "_AddCoursesLayout";
+    Layout = "_AddCoursesLayout";
 }
 
 <h2>Register</h2>
@@ -61,11 +61,19 @@
 
     <script>
         function toggleIframe(role) {
+            const iframeContainer = $("#DonorIframe");
+            const iframe = $("#surveyFrame");
+
             if (role === "Donor") {
-                $("#DonorIframe").show();
+                iframe.attr("src", "https://arcg.is/eHWC1");
+                iframeContainer.show();
+            } else if (role === "Charity") {
+                iframe.attr("src", "https://survey123.arcgis.com/share/2c36d5ade9064fe685d54893df3b37ea");
+                iframeContainer.show();
             } else {
-                $("#DonorIframe").hide();
+                iframeContainer.hide();
             }
+
             checkVisibility();
         }
 
