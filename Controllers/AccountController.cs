@@ -32,7 +32,12 @@ public class AccountController : Controller
         if (!ModelState.IsValid)
             return View(model);
 
-        var user = new IdentityUser { UserName = model.Email, Email = model.Email };
+        var user = new IdentityUser
+        {
+            UserName = model.Email,
+            Email = model.Email
+        };
+
         var result = await _userManager.CreateAsync(user, model.Password);
 
         if (result.Succeeded)
@@ -42,8 +47,10 @@ public class AccountController : Controller
             {
                 if (!await _roleManager.RoleExistsAsync(model.Role))
                     await _roleManager.CreateAsync(new IdentityRole(model.Role));
+
                 await _userManager.AddToRoleAsync(user, model.Role);
             }
+
             await _signInManager.SignInAsync(user, isPersistent: false);
             return RedirectToAction("Index", "Home");
         }
@@ -112,4 +119,19 @@ public class AccountController : Controller
         }
         return RedirectToAction("Index", "Home");
     }
+
+    [AcceptVerbs("Get", "Post")]
+    public async Task<IActionResult> IsEmailInUse(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            return Json(true); 
+        }
+        else
+        {
+            return Json("Account already registed");
+        }
+    }
+
 }
