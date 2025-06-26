@@ -183,8 +183,26 @@
         });
 
         $("#submitAllBtn").on("click", function () {
-            console.log("Donations submitted:", donations);
-            alert("Donations submitted successfully!");
+            if (donations.length === 0) return;
+            // AJAX submit
+            const data = donations.map(d => ({ BeneficiaryId: d.id, Amount: d.amount }));
+            $.ajax({
+                url: '/Donate/SubmitDonations',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function (res) {
+                    if (res.success) {
+                        alert('تم تسجيل التبرعات بنجاح!');
+                        location.reload();
+                    } else {
+                        alert('حدث خطأ أثناء الحفظ!');
+                    }
+                },
+                error: function () {
+                    alert('حدث خطأ أثناء الحفظ!');
+                }
+            });
         });
 
         $("#roleFilter, #fieldFilter").on("change", function () {

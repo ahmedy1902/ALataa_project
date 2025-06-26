@@ -7,5 +7,6 @@ namespace Accounts.Models
     public class AccountContext : IdentityDbContext<IdentityUser>
     {
         public AccountContext(DbContextOptions<AccountContext> options) : base(options) { }
+        public DbSet<Donation> Donations { get; set; } // Add Donations table
     }
 }
