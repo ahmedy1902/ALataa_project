@@ -3,12 +3,16 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using Accounts.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using System.Linq;
+using System.Collections.Generic;
 
 public class AccountController : Controller
 {
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    // In-memory beneficiaries list for demo (replace with DB in production)
+    private static List<BeneficiaryDonationViewModel> Beneficiaries = new List<BeneficiaryDonationViewModel>();
 
     public AccountController(UserManager<IdentityUser> userManager,
                              SignInManager<IdentityUser> signInManager,
@@ -29,8 +33,20 @@ public class AccountController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterModel model)
     {
+        // Custom validation for beneficiary fields
+        if (model.Role == "Beneficiary")
+        {
+            if (!model.NeededAmount.HasValue || model.NeededAmount <= 0)
+                ModelState.AddModelError("NeededAmount", "Needed amount is required for beneficiaries.");
+            if (model.HelpFields == null || !model.HelpFields.Any())
+                ModelState.AddModelError("HelpFields", "Please select at least one help field.");
+        }
+
         if (!ModelState.IsValid)
+        {
+            ModelState.AddModelError("RegisterError", "ModelState is invalid. Please check your input.");
             return View(model);
+        }
 
         var user = new IdentityUser
         {
@@ -51,15 +67,31 @@ public class AccountController : Controller
                 await _userManager.AddToRoleAsync(user, model.Role);
             }
 
-            await _signInManager.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index", "Home");
+            // If beneficiary, add to in-memory list (replace with DB in production)
+            if (model.Role == "Beneficiary" && model.NeededAmount.HasValue && model.HelpFields != null)
+            {
+                Beneficiaries.Add(new BeneficiaryDonationViewModel
+                {
+                    BeneficiaryId = Beneficiaries.Count + 1,
+                    Name = model.Email,
+                    NeededAmount = model.NeededAmount.Value,
+                    DonatedAmount = 0,
+                    HelpFields = model.HelpFields
+                });
+            }
+
+            // لا تقم بتسجيل الدخول تلقائياً
+            // await _signInManager.SignInAsync(user, isPersistent: false);
+            return RedirectToAction("Login", "Account");
         }
 
         foreach (var error in result.Errors)
         {
-            ModelState.AddModelError(string.Empty, error.Description);
+            ModelState.AddModelError("RegisterError", error.Description);
         }
 
+        // Log for debug
+        ModelState.AddModelError("RegisterError", "User creation failed. Check errors above.");
         return View(model);
     }
 
@@ -88,9 +120,14 @@ public class AccountController : Controller
             if (user != null)
             {
                 var roles = await _userManager.GetRolesAsync(user);
+                if (roles.Contains("Donor"))
+                {
+                    return RedirectToAction("Index", "Donate");
+                }
                 if (roles.Contains("Beneficiary"))
                 {
-                    return Redirect("https://survey123.arcgis.com/share/1b6326b33d2b4213bf757d6780a0f12a");
+                    // يمكن توجيه المستفيد لصفحة معينة أو رسالة
+                    return RedirectToAction("Index", "Home");
                 }
             }
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -134,4 +171,6 @@ public class AccountController : Controller
         }
     }
 
+    // Expose beneficiaries for DonateController
+    public static List<BeneficiaryDonationViewModel> GetBeneficiaries() => Beneficiaries;
 }
