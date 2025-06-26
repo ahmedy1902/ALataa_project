@@ -36,6 +36,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Needed Amount</th>
+                                    <th>User Type</th>
                                     <th>Donate</th>
                                 </tr>
                             </thead>
@@ -45,6 +46,7 @@
                                     <tr data-id="@b.BeneficiaryId">
                                         <td>@b.Name</td>
                                         <td>@b.NeededAmount</td>
+                                        <td>@b.UserType</td>
                                         <td>
                                             <div class="input-group">
                                                 <input type="number" class="form-control donate-amount" min="1" max="@b.NeededAmount" placeholder="Amount" />
@@ -71,6 +73,7 @@
                             <thead>
                                 <tr>
                                     <th>Beneficiary</th>
+                                    <th>User Type</th>
                                     <th>Donated Amount</th>
                                 </tr>
                             </thead>
@@ -105,7 +108,7 @@
             const tbody = $("#donationSummary tbody");
             tbody.empty();
             donations.forEach(d => {
-                tbody.append(`<tr><td>${d.name}</td><td>${d.amount}</td></tr>`);
+                tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${d.amount}</td></tr>`);
             });
             updateRemaining();
         }

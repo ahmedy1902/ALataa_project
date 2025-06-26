@@ -44,6 +44,7 @@ namespace Accounts.ViewModels
         public decimal NeededAmount { get; set; }
         public decimal DonatedAmount { get; set; }
         public List<string>? HelpFields { get; set; }
+        public string UserType { get; set; } = string.Empty; // New: Donor/Charity/Beneficiary
     }
 
     public class DonateViewModel

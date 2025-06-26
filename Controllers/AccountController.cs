@@ -33,11 +33,11 @@ public class AccountController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterModel model)
     {
-        // Custom validation for beneficiary fields
-        if (model.Role == "Beneficiary")
+        // Custom validation for beneficiary and charity fields
+        if (model.Role == "Beneficiary" || model.Role == "Charity")
         {
             if (!model.NeededAmount.HasValue || model.NeededAmount <= 0)
-                ModelState.AddModelError("NeededAmount", "Needed amount is required for beneficiaries.");
+                ModelState.AddModelError("NeededAmount", "Needed amount is required for this role.");
             if (model.HelpFields == null || !model.HelpFields.Any())
                 ModelState.AddModelError("HelpFields", "Please select at least one help field.");
         }
@@ -67,8 +67,8 @@ public class AccountController : Controller
                 await _userManager.AddToRoleAsync(user, model.Role);
             }
 
-            // If beneficiary, add to in-memory list (replace with DB in production)
-            if (model.Role == "Beneficiary" && model.NeededAmount.HasValue && model.HelpFields != null)
+            // If beneficiary or charity, add to in-memory list (replace with DB in production)
+            if ((model.Role == "Beneficiary" || model.Role == "Charity") && model.NeededAmount.HasValue && model.HelpFields != null)
             {
                 Beneficiaries.Add(new BeneficiaryDonationViewModel
                 {
@@ -76,7 +76,8 @@ public class AccountController : Controller
                     Name = model.Email,
                     NeededAmount = model.NeededAmount.Value,
                     DonatedAmount = 0,
-                    HelpFields = model.HelpFields
+                    HelpFields = model.HelpFields,
+                    UserType = model.Role
                 });
             }
 

@@ -44,7 +44,7 @@
         <span asp-validation-for="Role" class="text-danger"></span>
     </div>
 
-    <!-- Beneficiary fields -->
+    <!-- Beneficiary/Charity fields -->
     <div id="beneficiaryFields" style="display:none;">
         <div class="form-group mt-3">
             <label asp-for="NeededAmount">Needed Amount</label>
@@ -102,12 +102,7 @@
                 iframeContainer.show();
                 $("#beneficiaryFields").hide();
                 $("#loadingSurvey").show();
-            } else if (role === "Charity") {
-                iframe.attr("src", "https://survey123.arcgis.com/share/2c36d5ade9064fe685d54893df3b37ea");
-                iframeContainer.show();
-                $("#beneficiaryFields").hide();
-                $("#loadingSurvey").show();
-            } else if (role === "Beneficiary") {
+            } else if (role === "Charity" || role === "Beneficiary") {
                 iframeContainer.hide();
                 $("#beneficiaryFields").show();
                 $("#loadingSurvey").hide();
