@@ -1,38 +1,51 @@
 using Microsoft.AspNetCore.Mvc;
 using Accounts.ViewModels;
 using System.Collections.Generic;
-using Accounts.Models;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using System;
+using System.Threading.Tasks;
+using Accounts.Services;
+using System.Linq;
 
 public class DonateController : Controller
 {
-    private readonly AccountContext _context;
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly ArcGisService _arcGisService;
 
-    public DonateController(AccountContext context, UserManager<IdentityUser> userManager)
+    public DonateController(UserManager<IdentityUser> userManager, ArcGisService arcGisService)
     {
-        _context = context;
         _userManager = userManager;
+        _arcGisService = arcGisService;
     }
 
     [HttpGet]
-    [Authorize(Roles = "Donor")] 
-    public IActionResult Index()
+    [Authorize(Roles = "Donor")]
+    public async Task<IActionResult> Index()
     {
-        // Ã·» «·„” ›ÌœÌ‰ „‰ ﬁ«⁄œ… «·»Ì«‰« 
-        var beneficiaries = new AccountController(_userManager, null, null, _context).GetBeneficiaries();
-        foreach (var b in beneficiaries)
+        var charities = await _arcGisService.GetCharitiesAsync();
+        var needies = await _arcGisService.GetNeediesAsync();
+        var beneficiaries = new List<BeneficiaryDonationViewModel>();
+
+        beneficiaries.AddRange(charities.Select(c => new BeneficiaryDonationViewModel
         {
-            if (string.IsNullOrEmpty(b.UserType))
-            {
-                b.UserType = b.Name.Contains("charity", StringComparison.OrdinalIgnoreCase) ? "Charity" : "Beneficiary";
-            }
-        }
+            BeneficiaryId = c.objectid ?? 0,
+            Name = c.charity_name,
+            NeededAmount = (decimal)(c.how_much_do_you_need ?? 0), // cast to decimal
+            DonatedAmount = 0,
+            HelpFields = new List<string> { c.charity_sector },
+            UserType = "Charity"
+        }));
+
+        beneficiaries.AddRange(needies.Select(n => new BeneficiaryDonationViewModel
+        {
+            BeneficiaryId = n.objectid ?? 0,
+            Name = n.full_name,
+            NeededAmount = (decimal)(n.how_much_do_you_need ?? 0), // cast to decimal
+            DonatedAmount = 0,
+            HelpFields = new List<string> { n.type_of_need },
+            UserType = "Beneficiary"
+        }));
 
         var model = new DonateViewModel
         {
@@ -52,39 +65,10 @@ public class DonateController : Controller
 
     [HttpGet]
     [Authorize(Roles = "Donor")]
-    public async Task<IActionResult> ViewDonationHistory(string userType = null, string field = null, DateTime? from = null, DateTime? to = null)
+    public async Task<IActionResult> ViewDonationHistory()
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return Unauthorized();
-
-        var donations = await _context.Donations
-            .Where(d => d.DonorId == user.Id)
-            .OrderByDescending(d => d.Date)
-            .ToListAsync();
-
-        var beneficiaries = new AccountController(_userManager, null, null, _context).GetBeneficiaries();
-        var beneficiaryRoles = beneficiaries.ToDictionary(b => b.BeneficiaryId, b => b.UserType);
-        var beneficiaryFields = beneficiaries.ToDictionary(b => b.BeneficiaryId, b => b.HelpFields ?? new List<string>());
-
-        if (!string.IsNullOrEmpty(userType))
-            donations = donations.Where(d => beneficiaryRoles.ContainsKey(d.BeneficiaryId) && beneficiaryRoles[d.BeneficiaryId] == userType).ToList();
-
-        if (!string.IsNullOrEmpty(field))
-            donations = donations.Where(d => beneficiaryFields.ContainsKey(d.BeneficiaryId) && beneficiaryFields[d.BeneficiaryId].Contains(field)).ToList();
-
-        if (from.HasValue)
-            donations = donations.Where(d => d.Date >= from.Value).ToList();
-
-        if (to.HasValue)
-            donations = donations.Where(d => d.Date <= to.Value).ToList();
-
-        ViewBag.Total = donations.Sum(d => d.Amount);
-        ViewBag.UserTypes = beneficiaryRoles.Values.Distinct().ToList();
-        ViewBag.Fields = beneficiaryFields.Values.SelectMany(f => f).Distinct().ToList();
-        ViewBag.BeneficiaryRoles = beneficiaryRoles;
-        ViewBag.BeneficiaryFields = beneficiaryFields;
-
-        return View("ViewDonationHistory", donations);
+        // Ì„ﬂ‰ Ã·» «· »—⁄«  „‰ ArcGIS ≈–« √—œ  ⁄—÷Â«
+        return View("ViewDonationHistory", new List<object>()); // ⁄œ· Õ”» «·Õ«Ã…
     }
 
     [HttpPost]
@@ -95,39 +79,33 @@ public class DonateController : Controller
         if (user == null)
             return Unauthorized();
 
-        var beneficiaries = new AccountController(_userManager, null, null, _context).GetBeneficiaries();
+        var charities = await _arcGisService.GetCharitiesAsync();
+        var needies = await _arcGisService.GetNeediesAsync();
+        var all = new List<dynamic>();
+        all.AddRange(charities);
+        all.AddRange(needies);
         var results = new List<object>();
 
         foreach (var d in donations)
         {
-            var beneficiary = beneficiaries.FirstOrDefault(b => b.BeneficiaryId == d.BeneficiaryId);
-            if (beneficiary == null || d.Amount <= 0 || d.Amount > beneficiary.NeededAmount)
+            var beneficiary = all.FirstOrDefault(b => (b.objectid ?? 0) == d.BeneficiaryId);
+            if (beneficiary == null || d.Amount < 1 || d.Amount > 1000000)
                 continue;
 
-            var donation = new Donation
+            string name = beneficiary.charity_name ?? beneficiary.full_name;
+            string field = beneficiary.charity_sector ?? beneficiary.type_of_need;
+            string userType = beneficiary.charity_name != null ? "Charity" : "Beneficiary";
+
+            var donation = new DonationFeature
             {
-                DonorId = user.Id,
-                BeneficiaryId = d.BeneficiaryId,
-                BeneficiaryName = beneficiary.Name,
-                Amount = d.Amount,
-                Date = DateTime.UtcNow,
-                BeneficiaryUserType = beneficiary.UserType,
-                BeneficiaryHelpFields = string.Join(", ", beneficiary.HelpFields ?? new List<string>())
+                donor_name = user.Email,
+                recipient_name = name,
+                donation_field = field,
+                donation_date = DateTime.UtcNow
             };
-            _context.Donations.Add(donation);
-
-            //  ÕœÌÀ NeededAmount Ê DonatedAmount ›Ì ﬁ«⁄œ… «·»Ì«‰« 
-            var dbBeneficiary = _context.Beneficiaries.FirstOrDefault(b => b.BeneficiaryId == d.BeneficiaryId);
-            if (dbBeneficiary != null)
-            {
-                dbBeneficiary.NeededAmount -= d.Amount;
-                if (dbBeneficiary.NeededAmount < 0) dbBeneficiary.NeededAmount = 0;
-                dbBeneficiary.DonatedAmount += d.Amount;
-            }
-
-            results.Add(new { beneficiary.BeneficiaryId, beneficiary.NeededAmount });
+            await _arcGisService.AddDonationAsync(donation, 0, 0);
+            results.Add(new { id = d.BeneficiaryId });
         }
-        await _context.SaveChangesAsync();
         return Json(new { success = true, updated = results });
     }
 

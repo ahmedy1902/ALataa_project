@@ -56,7 +56,7 @@
         </div>
     </div>
 
-    <!-- Beneficiaries table -->
+    <!-- Beneficiaries & Charities table -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
@@ -94,7 +94,7 @@
                                         </td>
                                         <td>
                                             <div class="input-group">
-                                                <input type="number" class="form-control donate-amount" min="1" max="@b.NeededAmount" placeholder="Amount" />
+                                                <input type="number" class="form-control donate-amount" min="1" max="1000000" placeholder="Amount" />
                                                 <button type="button" class="btn btn-success donate-btn">Donate</button>
                                             </div>
                                         </td>
@@ -170,7 +170,7 @@
 
             const total = parseFloat($("#TotalDonation").val()) || 0;
             const used = donations.reduce((sum, d) => sum + d.amount, 0);
-            if (!amount || amount <= 0 || amount > needed || amount > (total - used)) {
+            if (!amount || amount < 1 || amount > 1000000 || amount > (total - used)) {
                 input.addClass("is-invalid");
                 return;
             }
@@ -190,7 +190,11 @@
         $("#submitAllBtn").on("click", function () {
             if (donations.length === 0) return;
             // AJAX submit
-            const data = donations.map(d => ({ BeneficiaryId: d.id, Amount: d.amount }));
+            const data = donations.map(d => ({
+                BeneficiaryId: parseInt(d.id), // تأكد من أن id رقم
+                Amount: parseFloat(d.amount)   // تأكد من أن amount رقم
+            }));
+            console.log("Submitting donations:", data); // لمراقبة البيانات
             $.ajax({
                 url: '/Donate/SubmitDonations',
                 type: 'POST',
@@ -198,15 +202,16 @@
                 data: JSON.stringify(data),
                 success: function (res) {
                     if (res.success) {
-        alert('Donations have been successfully recorded!');
-                                location.reload();
+                        alert('Donations have been successfully recorded!');
+                        location.reload();
                     } else {
-        alert('An error occurred while saving!');
-                            }
+                        alert('An error occurred while saving!');
+                    }
                 },
-                error: function () {
-        alert('An error occurred while saving!');
-                        }
+                error: function (xhr) {
+                    alert('An error occurred while saving!');
+                    console.log(xhr.responseText);
+                }
             });
         });
 
@@ -216,10 +221,11 @@
 
             $("#beneficiariesTable tbody tr").each(function () {
                 const row = $(this);
-                const UserType = row.data("UserType")?.toLowerCase() || "";
+                // استخدم data-usertype بدلاً من data-UserType (jQuery يحول الحروف الكبيرة لصغيرة)
+                const userType = (row.data("usertype") || "").toLowerCase();
                 const fields = row.data("fields") || "";
 
-                const matchRole = !selectedRole || UserType === selectedRole;
+                const matchRole = !selectedRole || userType === selectedRole;
                 const matchField = !selectedField || fields.includes(selectedField);
                 row.toggle(matchRole && matchField);
             });

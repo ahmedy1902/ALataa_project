@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Accounts.Models;
+using Accounts.Services;
 
 namespace Accounts
 {
@@ -26,6 +27,9 @@ namespace Accounts
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequiredLength = 6;
             });
+
+            // Add ArcGisService as singleton with HttpClient
+            builder.Services.AddHttpClient<ArcGisService>();
 
             var app = builder.Build();
 
