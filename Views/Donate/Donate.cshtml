@@ -1,6 +1,8 @@
-@model Accounts.ViewModels.DonateViewModel
+﻿@model Accounts.ViewModels.DonateViewModel
 @{
     ViewData["Title"] = "Donate";
+    var allFields = Model.Beneficiaries.SelectMany(b => b.HelpFields ?? new List<string>()).Distinct().ToList();
+    var allRoles = Model.Beneficiaries.Select(b => b.UserType).Distinct().ToList();
 }
 
 <div class="container py-4">
@@ -17,7 +19,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Remaining Balance</label>
-                            <input class="form-control" id="RemainingBalance" value="@Model.RemainingBalance" readonly />
+                            <input class="form-control" id="RemainingBalance" readonly />
                         </div>
                     </form>
                 </div>
@@ -25,32 +27,70 @@
         </div>
     </div>
 
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label>Filter by UserType</label>
+            <select id="roleFilter" class="form-control">
+                <option value="">All Roles</option>
+                @foreach (var r in allRoles)
+                {
+                    <option value="@r">@r</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label>Filter by Help Field</label>
+            <select id="fieldFilter" class="form-control">
+                <option value="">All Fields</option>
+                @foreach (var field in allFields)
+                {
+                    <option value="@field">@field</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- Beneficiaries table -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h4 class="mb-3">Beneficiaries</h4>
+                    <h4 class="mb-3">Beneficiaries & Charities</h4>
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
+                        <table class="table table-bordered align-middle" id="beneficiariesTable">
                             <thead class="table-light">
                                 <tr>
                                     <th>Name</th>
-                                    <th>Needed Amount</th>
-                                    <th>User Type</th>
+                                    <th>Needed</th>
+                                    <th>UserType</th>
+                                    <th>Fields</th>
                                     <th>Donate</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var b in Model.Beneficiaries)
                                 {
-                                    <tr data-id="@b.BeneficiaryId">
+                                    var fields = string.Join(",", b.HelpFields ?? new List<string>());
+                                    <tr data-id="@b.BeneficiaryId"
+                                        data-UserType="@b.UserType"
+                                        data-fields="@fields.ToLower()">
                                         <td>@b.Name</td>
                                         <td>@b.NeededAmount</td>
                                         <td>@b.UserType</td>
                                         <td>
+                                            @if (b.HelpFields != null && b.HelpFields.Any())
+                                            {
+                                                foreach (var field in b.HelpFields)
+                                                {
+                                                    <span class="badge bg-info text-dark">@field</span>
+                                                }
+                                            }
+                                        </td>
+                                        <td>
                                             <div class="input-group">
                                                 <input type="number" class="form-control donate-amount" min="1" max="@b.NeededAmount" placeholder="Amount" />
-                                                <button type="button" class="btn btn-success donate-btn">Donate to this person</button>
+                                                <button type="button" class="btn btn-success donate-btn">Donate</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -63,6 +103,7 @@
         </div>
     </div>
 
+    <!-- Summary -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
@@ -72,14 +113,13 @@
                         <table class="table table-striped" id="donationSummary">
                             <thead>
                                 <tr>
-                                    <th>Beneficiary</th>
-                                    <th>User Type</th>
-                                    <th>Donated Amount</th>
+                                    <th>Name</th>
+                                    <th>UserType</th>
+                                    <th>Fields</th>
+                                    <th>Amount</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Filled by JS -->
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                     <button class="btn btn-primary" id="submitAllBtn" disabled>Submit All Donations</button>
@@ -92,61 +132,74 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
-        let totalDonation = 0;
-        let remaining = 0;
         let donations = [];
 
         function updateRemaining() {
-            const input = $("#TotalDonation");
-            totalDonation = parseFloat(input.val()) || 0;
-            remaining = totalDonation - donations.reduce((sum, d) => sum + d.amount, 0);
+            const total = parseFloat($("#TotalDonation").val()) || 0;
+            const used = donations.reduce((sum, d) => sum + d.amount, 0);
+            const remaining = total - used;
             $("#RemainingBalance").val(remaining.toFixed(2));
-            $("#submitAllBtn").prop("disabled", donations.length === 0 || remaining < 0 || totalDonation === 0);
+            $("#submitAllBtn").prop("disabled", donations.length === 0 || remaining < 0 || total === 0);
         }
 
         function updateSummary() {
             const tbody = $("#donationSummary tbody");
             tbody.empty();
             donations.forEach(d => {
-                tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${d.amount}</td></tr>`);
+                tbody.append(`<tr><td>${d.name}</td><td>${d.UserType}</td><td>${d.fields}</td><td>${d.amount}</td></tr>`);
             });
             updateRemaining();
         }
 
-        $(document).on("input", "#TotalDonation", function () {
-            updateRemaining();
-        });
+        $(document).on("input", "#TotalDonation", updateRemaining);
 
         $(document).on("click", ".donate-btn", function () {
             const row = $(this).closest("tr");
             const id = row.data("id");
             const name = row.find("td").eq(0).text();
             const needed = parseFloat(row.find("td").eq(1).text());
+            const UserType = row.find("td").eq(2).text();
+            const fields = row.find("td").eq(3).text();
             const input = row.find(".donate-amount");
             const amount = parseFloat(input.val());
-            if (!amount || amount <= 0 || amount > needed) {
+
+            const total = parseFloat($("#TotalDonation").val()) || 0;
+            const used = donations.reduce((sum, d) => sum + d.amount, 0);
+            if (!amount || amount <= 0 || amount > needed || amount > (total - used)) {
                 input.addClass("is-invalid");
                 return;
             }
+
+            if (donations.some(d => d.id === id)) {
+                alert("You already donated to this person.");
+                return;
+            }
+
             input.removeClass("is-invalid");
-            // Check remaining
-            if (amount > remaining) {
-                input.addClass("is-invalid");
-                return;
-            }
-            // Add or update donation
-            const existing = donations.find(d => d.id === id);
-            if (existing) {
-                existing.amount += amount;
-            } else {
-                donations.push({ id, name, amount });
-            }
+            donations.push({ id, name, UserType, fields, amount });
+            row.find(".donate-btn").prop("disabled", true).text("✓ Donated");
+            input.prop("disabled", true);
             updateSummary();
-            input.val("");
         });
 
-        $(document).on("click", "#submitAllBtn", function () {
-            alert("Donations submitted! (Demo only)");
+        $("#submitAllBtn").on("click", function () {
+            console.log("Donations submitted:", donations);
+            alert("Donations submitted successfully!");
+        });
+
+        $("#roleFilter, #fieldFilter").on("change", function () {
+            const selectedRole = $("#roleFilter").val().toLowerCase();
+            const selectedField = $("#fieldFilter").val().toLowerCase();
+
+            $("#beneficiariesTable tbody tr").each(function () {
+                const row = $(this);
+                const UserType = row.data("UserType")?.toLowerCase() || "";
+                const fields = row.data("fields") || "";
+
+                const matchRole = !selectedRole || UserType === selectedRole;
+                const matchField = !selectedField || fields.includes(selectedField);
+                row.toggle(matchRole && matchField);
+            });
         });
     </script>
 }
