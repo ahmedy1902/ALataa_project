@@ -193,15 +193,15 @@
                 data: JSON.stringify(data),
                 success: function (res) {
                     if (res.success) {
-                        alert('تم تسجيل التبرعات بنجاح!');
-                        location.reload();
+        alert('Donations have been successfully recorded!');
+                                location.reload();
                     } else {
-                        alert('حدث خطأ أثناء الحفظ!');
-                    }
+        alert('An error occurred while saving!');
+                            }
                 },
                 error: function () {
-                    alert('حدث خطأ أثناء الحفظ!');
-                }
+        alert('An error occurred while saving!');
+                        }
             });
         });
 

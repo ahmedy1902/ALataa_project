@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using System;
 
 public class DonateController : Controller
 {
@@ -20,18 +21,19 @@ public class DonateController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = "Donor")] 
     public IActionResult Index()
     {
-        // Get beneficiaries from AccountController (in-memory for demo)
-        var beneficiaries = AccountController.GetBeneficiaries();
-        // Add UserType for each beneficiary (for demo, assume Beneficiary or Charity)
+        // Ã·» «·„” ›ÌœÌ‰ „‰ ﬁ«⁄œ… «·»Ì«‰« 
+        var beneficiaries = new AccountController(_userManager, null, null, _context).GetBeneficiaries();
         foreach (var b in beneficiaries)
         {
-            if (b.UserType == string.Empty)
+            if (string.IsNullOrEmpty(b.UserType))
             {
-                b.UserType = b.Name.Contains("charity", System.StringComparison.OrdinalIgnoreCase) ? "Charity" : "Beneficiary";
+                b.UserType = b.Name.Contains("charity", StringComparison.OrdinalIgnoreCase) ? "Charity" : "Beneficiary";
             }
         }
+
         var model = new DonateViewModel
         {
             Beneficiaries = beneficiaries,
@@ -39,6 +41,50 @@ public class DonateController : Controller
             TotalDonation = 0
         };
         return View("Donate", model);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Donor")]
+    public IActionResult Welcome()
+    {
+        return View();
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Donor")]
+    public async Task<IActionResult> ViewDonationHistory(string userType = null, string field = null, DateTime? from = null, DateTime? to = null)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Unauthorized();
+
+        var donations = await _context.Donations
+            .Where(d => d.DonorId == user.Id)
+            .OrderByDescending(d => d.Date)
+            .ToListAsync();
+
+        var beneficiaries = new AccountController(_userManager, null, null, _context).GetBeneficiaries();
+        var beneficiaryRoles = beneficiaries.ToDictionary(b => b.BeneficiaryId, b => b.UserType);
+        var beneficiaryFields = beneficiaries.ToDictionary(b => b.BeneficiaryId, b => b.HelpFields ?? new List<string>());
+
+        if (!string.IsNullOrEmpty(userType))
+            donations = donations.Where(d => beneficiaryRoles.ContainsKey(d.BeneficiaryId) && beneficiaryRoles[d.BeneficiaryId] == userType).ToList();
+
+        if (!string.IsNullOrEmpty(field))
+            donations = donations.Where(d => beneficiaryFields.ContainsKey(d.BeneficiaryId) && beneficiaryFields[d.BeneficiaryId].Contains(field)).ToList();
+
+        if (from.HasValue)
+            donations = donations.Where(d => d.Date >= from.Value).ToList();
+
+        if (to.HasValue)
+            donations = donations.Where(d => d.Date <= to.Value).ToList();
+
+        ViewBag.Total = donations.Sum(d => d.Amount);
+        ViewBag.UserTypes = beneficiaryRoles.Values.Distinct().ToList();
+        ViewBag.Fields = beneficiaryFields.Values.SelectMany(f => f).Distinct().ToList();
+        ViewBag.BeneficiaryRoles = beneficiaryRoles;
+        ViewBag.BeneficiaryFields = beneficiaryFields;
+
+        return View("ViewDonationHistory", donations);
     }
 
     [HttpPost]
@@ -49,7 +95,7 @@ public class DonateController : Controller
         if (user == null)
             return Unauthorized();
 
-        var beneficiaries = AccountController.GetBeneficiaries();
+        var beneficiaries = new AccountController(_userManager, null, null, _context).GetBeneficiaries();
         var results = new List<object>();
 
         foreach (var d in donations)
@@ -58,21 +104,26 @@ public class DonateController : Controller
             if (beneficiary == null || d.Amount <= 0 || d.Amount > beneficiary.NeededAmount)
                 continue;
 
-            // ”Ã· «· »—⁄
             var donation = new Donation
             {
                 DonorId = user.Id,
                 BeneficiaryId = d.BeneficiaryId,
                 BeneficiaryName = beneficiary.Name,
                 Amount = d.Amount,
-                Date = System.DateTime.UtcNow
+                Date = DateTime.UtcNow,
+                BeneficiaryUserType = beneficiary.UserType,
+                BeneficiaryHelpFields = string.Join(", ", beneficiary.HelpFields ?? new List<string>())
             };
             _context.Donations.Add(donation);
 
-            // Œ’„ «·„»·€
-            beneficiary.NeededAmount -= d.Amount;
-            if (beneficiary.NeededAmount < 0) beneficiary.NeededAmount = 0;
-            beneficiary.DonatedAmount += d.Amount;
+            //  ÕœÌÀ NeededAmount Ê DonatedAmount ›Ì ﬁ«⁄œ… «·»Ì«‰« 
+            var dbBeneficiary = _context.Beneficiaries.FirstOrDefault(b => b.BeneficiaryId == d.BeneficiaryId);
+            if (dbBeneficiary != null)
+            {
+                dbBeneficiary.NeededAmount -= d.Amount;
+                if (dbBeneficiary.NeededAmount < 0) dbBeneficiary.NeededAmount = 0;
+                dbBeneficiary.DonatedAmount += d.Amount;
+            }
 
             results.Add(new { beneficiary.BeneficiaryId, beneficiary.NeededAmount });
         }

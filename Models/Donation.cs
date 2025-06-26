@@ -16,5 +16,8 @@ namespace Accounts.Models
         [Required]
         public decimal Amount { get; set; }
         public DateTime Date { get; set; } = DateTime.UtcNow;
+        // New fields for reporting
+        public string BeneficiaryUserType { get; set; } = string.Empty;
+        public string BeneficiaryHelpFields { get; set; } = string.Empty; // CSV
     }
 }

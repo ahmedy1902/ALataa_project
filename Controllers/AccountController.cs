@@ -5,22 +5,24 @@ using Accounts.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using System.Linq;
 using System.Collections.Generic;
+using Accounts.Models;
 
 public class AccountController : Controller
 {
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    // In-memory beneficiaries list for demo (replace with DB in production)
-    private static List<BeneficiaryDonationViewModel> Beneficiaries = new List<BeneficiaryDonationViewModel>();
+    private readonly AccountContext _context;
 
     public AccountController(UserManager<IdentityUser> userManager,
                              SignInManager<IdentityUser> signInManager,
-                             RoleManager<IdentityRole> roleManager)
+                             RoleManager<IdentityRole> roleManager,
+                             AccountContext context)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
+        _context = context;
     }
 
     // ✅ Register - GET
@@ -67,18 +69,19 @@ public class AccountController : Controller
                 await _userManager.AddToRoleAsync(user, model.Role);
             }
 
-            // If beneficiary or charity, add to in-memory list (replace with DB in production)
+            // If beneficiary or charity, add to DB
             if ((model.Role == "Beneficiary" || model.Role == "Charity") && model.NeededAmount.HasValue && model.HelpFields != null)
             {
-                Beneficiaries.Add(new BeneficiaryDonationViewModel
+                var beneficiary = new Beneficiary
                 {
-                    BeneficiaryId = Beneficiaries.Count + 1,
                     Name = model.Email,
                     NeededAmount = model.NeededAmount.Value,
                     DonatedAmount = 0,
-                    HelpFields = model.HelpFields,
+                    HelpFields = string.Join(",", model.HelpFields),
                     UserType = model.Role
-                });
+                };
+                _context.Beneficiaries.Add(beneficiary);
+                await _context.SaveChangesAsync();
             }
 
             // لا تقم بتسجيل الدخول تلقائياً
@@ -173,5 +176,16 @@ public class AccountController : Controller
     }
 
     // Expose beneficiaries for DonateController
-    public static List<BeneficiaryDonationViewModel> GetBeneficiaries() => Beneficiaries;
+    public List<BeneficiaryDonationViewModel> GetBeneficiaries()
+    {
+        return _context.Beneficiaries.Select(b => new BeneficiaryDonationViewModel
+        {
+            BeneficiaryId = b.BeneficiaryId,
+            Name = b.Name,
+            NeededAmount = b.NeededAmount,
+            DonatedAmount = b.DonatedAmount,
+            HelpFields = b.HelpFields.Split(',', System.StringSplitOptions.RemoveEmptyEntries).ToList(),
+            UserType = b.UserType
+        }).ToList();
+    }
 }

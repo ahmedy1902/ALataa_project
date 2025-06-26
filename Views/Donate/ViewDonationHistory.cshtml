@@ -1,0 +1,62 @@
+@{
+    ViewData["Title"] = "Donation History";
+    var userTypes = ViewBag.UserTypes as List<string> ?? new List<string>();
+    var fields = ViewBag.Fields as List<string> ?? new List<string>();
+    decimal total = ViewBag.Total ?? 0;
+}
+
+<h2 class="mb-4">Donation History</h2>
+<form method="get" class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label>User Type</label>
+        <select name="userType" class="form-control">
+            <option value="">All</option>
+            @foreach (var t in userTypes) { <option value="@t">@t</option> }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label>Help Field</label>
+        <select name="field" class="form-control">
+            <option value="">All</option>
+            @foreach (var f in fields) { <option value="@f">@f</option> }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label>From Date</label>
+        <input type="date" name="from" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label>To Date</label>
+        <input type="date" name="to" class="form-control" />
+    </div>
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+</form>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Beneficiary Name</th>
+            <th>User Type</th>
+            <th>Help Field</th>
+            <th>Donation Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var d in Model as List<Accounts.Models.Donation>)
+        {
+            <tr>
+                <td>@d.Date.ToString("yyyy-MM-dd HH:mm")</td>
+                <td>@d.BeneficiaryName</td>
+                <td>@(ViewBag.BeneficiaryRoles != null && ViewBag.BeneficiaryRoles.ContainsKey(d.BeneficiaryId) ? ViewBag.BeneficiaryRoles[d.BeneficiaryId] : "-")</td>
+                <td>@(ViewBag.BeneficiaryFields != null && ViewBag.BeneficiaryFields.ContainsKey(d.BeneficiaryId) ? string.Join(", ", ViewBag.BeneficiaryFields[d.BeneficiaryId]) : "-")</td>
+                <td>@d.Amount</td>
+            </tr>
+        }
+    </tbody>
+</table>
+<div class="mt-3">
+    <strong>Total:</strong> <span id="totalAmount">@total</span>
+</div>

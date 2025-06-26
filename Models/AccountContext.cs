@@ -8,5 +8,6 @@ namespace Accounts.Models
     {
         public AccountContext(DbContextOptions<AccountContext> options) : base(options) { }
         public DbSet<Donation> Donations { get; set; } // Add Donations table
+        public DbSet<Beneficiary> Beneficiaries { get; set; } // Add Beneficiaries table
     }
 }
