@@ -59,9 +59,12 @@ namespace Accounts.Services
     public class ArcGisService
     {
         private readonly HttpClient _client;
-        public ArcGisService(HttpClient client)
+        private readonly ILogger<ArcGisService>? _logger;
+
+        public ArcGisService(HttpClient client, ILogger<ArcGisService>? logger = null)
         {
             _client = client;
+            _logger = logger;
         }
 
         public async Task<List<CharityFeature>> GetCharitiesAsync()
@@ -171,6 +174,61 @@ namespace Accounts.Services
                 f.attributes.y = f.geometry?.y;
                 return f.attributes;
             }).FirstOrDefault();
+        }
+
+        // Send charity registration data to ArcGIS Feature Layer
+        public async Task<bool> SendCharityDataAsync(string charityName, string charitySector, string numberOfCasesSponsoredMonth, string monthlyDonationAmount, double howMuchDoYouNeed, string email, double x, double y)
+        {
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/addFeatures";
+            var payload = new
+            {
+                features = new[] {
+                    new {
+                        attributes = new {
+                            charity_name = charityName,
+                            charity_sector = charitySector,
+                            field_9 = numberOfCasesSponsoredMonth,
+                            field_10 = monthlyDonationAmount,
+                            how_much_do_you_need = howMuchDoYouNeed,
+                            enter_your_e_mail = email
+                        },
+                        geometry = new {
+                            x = x,
+                            y = y,
+                            spatialReference = new { wkid = 4326 }
+                        }
+                    }
+                },
+                f = "json"
+            };
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _client.PostAsync(url, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            return response.IsSuccessStatusCode && responseContent.Contains("addResults");
+        }
+
+        // Send charity registration data to ArcGIS Feature Layer (overload for RegisterModel)
+        public async Task<bool> SendCharityDataAsync(Accounts.ViewModels.RegisterModel model)
+        {
+            try
+            {
+                return await SendCharityDataAsync(
+                    model.CharityName ?? string.Empty,
+                    model.CharitySector ?? string.Empty,
+                    model.CasesSponsored ?? string.Empty,
+                    model.MonthlyDonation ?? string.Empty,
+                    model.CharityNeededAmount ?? 0,
+                    model.Email,
+                    model.Longitude ?? 0,
+                    model.Latitude ?? 0
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error sending charity data for email: {Email}", model.Email);
+                throw;
+            }
         }
     }
 }

@@ -6,12 +6,17 @@ namespace Accounts.ViewModels
 {
     public class LoginModel
     {
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
         public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required.")]
         public string Password { get; set; } = string.Empty;
+
         public bool RememberMe { get; set; }
     }
 
-    public class RegisterModel
+    public class RegisterModel : IValidatableObject
     {
         [Remote(action: "IsEmailInUse", controller: "Account")]
         [Required(ErrorMessage = "Email is required.")]
@@ -24,17 +29,112 @@ namespace Accounts.ViewModels
 
         [Compare("Password", ErrorMessage = "Passwords do not match.")]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please select a role.")]
         public string Role { get; set; } = string.Empty;
 
         // Beneficiary-specific fields
         [Display(Name = "Needed Amount")]
         public decimal? NeededAmount { get; set; }
 
-        [Display(Name = "Help Field")]
+        [Display(Name = "Help Fields")]
         public List<string>? HelpFields { get; set; }
 
-        // Helper for server-side validation
+        // Charity-specific fields
+        [Display(Name = "Charity Name")]
+        public string? CharityName { get; set; }
+
+        [Display(Name = "Charity Sector")]
+        public string? CharitySector { get; set; }
+
+        [Display(Name = "Number of Cases Sponsored Monthly")]
+        public string? CasesSponsored { get; set; }
+
+        [Display(Name = "Monthly Donation Amount")]
+        public string? MonthlyDonation { get; set; }
+
+        [Display(Name = "How Much Do You Need")]
+        public double? CharityNeededAmount { get; set; }
+
+        // Donor-specific fields
+        [Display(Name = "Full Name")]
+        public string? FullName { get; set; }
+
+        [Display(Name = "Type of Donation")]
+        public string? TypeOfDonation { get; set; } // "Monthly" or "One Time Only"
+
+        [Display(Name = "Donation Amount in EGP")]
+        public double? DonationAmountInEgp { get; set; }
+
+        [Display(Name = "Preferred Aid Category")]
+        public string? PreferredAidCategory { get; set; }
+
+        [Display(Name = "Who Would You Like To Donate To")]
+        public string? WhoWouldYouLikeToDonateTo { get; set; } // "A charity" or "A direct beneficiary"
+
+        // Hidden GPS coordinates
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+
+        // Custom validation
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var results = new List<ValidationResult>();
+
+            if (Role == "Beneficiary")
+            {
+                if (!NeededAmount.HasValue || NeededAmount <= 0)
+                {
+                    results.Add(new ValidationResult(
+                        "Needed amount is required for beneficiaries and must be greater than 0.",
+                        new[] { nameof(NeededAmount) }));
+                }
+
+                if (HelpFields == null || HelpFields.Count == 0)
+                {
+                    results.Add(new ValidationResult(
+                        "Please select at least one help field.",
+                        new[] { nameof(HelpFields) }));
+                }
+            }
+            else if (Role == "Charity")
+            {
+                if (string.IsNullOrWhiteSpace(CharityName))
+                {
+                    results.Add(new ValidationResult(
+                        "Charity name is required.",
+                        new[] { nameof(CharityName) }));
+                }
+
+                if (string.IsNullOrWhiteSpace(CharitySector))
+                {
+                    results.Add(new ValidationResult(
+                        "Charity sector is required.",
+                        new[] { nameof(CharitySector) }));
+                }
+
+                if (string.IsNullOrWhiteSpace(CasesSponsored))
+                {
+                    results.Add(new ValidationResult(
+                        "Number of cases sponsored is required.",
+                        new[] { nameof(CasesSponsored) }));
+                }
+
+                if (!CharityNeededAmount.HasValue || CharityNeededAmount <= 0)
+                {
+                    results.Add(new ValidationResult(
+                        "Needed amount is required for charities and must be greater than 0.",
+                        new[] { nameof(CharityNeededAmount) }));
+                }
+            }
+
+            return results;
+        }
+
+        // Helper properties
         public bool IsBeneficiary => Role == "Beneficiary";
+        public bool IsCharity => Role == "Charity";
+        public bool IsDonor => Role == "Donor";
     }
 
     public class BeneficiaryDonationViewModel
@@ -44,7 +144,7 @@ namespace Accounts.ViewModels
         public decimal NeededAmount { get; set; }
         public decimal DonatedAmount { get; set; }
         public List<string>? HelpFields { get; set; }
-        public string UserType { get; set; } = string.Empty; // New: Donor/Charity/Beneficiary
+        public string UserType { get; set; } = string.Empty;
     }
 
     public class DonateViewModel

@@ -10,6 +10,13 @@ namespace Accounts
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            
+            // Add logging
+            builder.Services.AddLogging(logging =>
+            {
+                logging.AddConsole();
+                logging.AddDebug();
+            });
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
@@ -28,8 +35,9 @@ namespace Accounts
                 options.Password.RequiredLength = 6;
             });
 
-            // Add ArcGisService as singleton with HttpClient
+            // Add ArcGisService with HttpClient and logging
             builder.Services.AddHttpClient<ArcGisService>();
+            builder.Services.AddScoped<ArcGisService>();
 
             var app = builder.Build();
 

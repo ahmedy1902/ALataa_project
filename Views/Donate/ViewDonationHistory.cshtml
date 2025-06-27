@@ -30,8 +30,8 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label>Help Field</label>
-        <select name="field" class="form-control">
+        <label>donation_field</label>
+        <select name="donation_field" class="form-control">
             <option value="">All</option>
             @foreach (var f in fields) { <option value="@f">@f</option> }
         </select>
@@ -56,7 +56,7 @@
             <th>Date</th>
             <th>Beneficiary Name</th>
             <th>User Type</th>
-            <th>Help Field</th>
+            <th>donation_field</th>
             <th>Donation Amount</th>
         </tr>
     </thead>
@@ -87,12 +87,12 @@
                     }
                 }
                 var userType = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.userType ?? "-";
-                var helpField = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.HelpFields ?? d.donation_field ?? "-";
-                <tr data-usertype="@userType" data-helpfield="@helpField">
+                var donationField = d.donation_field ?? accounts.FirstOrDefault(x => x.email == d.recipient_email)?.HelpFields ?? "-";
+                <tr data-usertype="@userType.ToLower()" data-donation_field="@donationField.ToLower()">
                     <td>@dateStr</td>
                     <td>@(d.recipient_email ?? "-")</td>
                     <td>@userType</td>
-                    <td>@helpField</td>
+                    <td>@donationField</td>
                     <td>@(d.donation_amount ?? "-")</td>
                 </tr>
             }
@@ -109,17 +109,17 @@
         $(function () {
             function filterTable() {
                 var selectedUserType = $("select[name='userType']").val().toLowerCase();
-                var selectedField = $("select[name='field']").val().toLowerCase();
+                var selectedDonationField = $("select[name='donation_field']").val().toLowerCase();
                 var fromDate = $("input[name='from']").val();
                 var toDate = $("input[name='to']").val();
                 $("#donationHistoryTable tbody tr").each(function () {
                     var row = $(this);
                     var userType = (row.data("usertype") || "").toLowerCase();
-                    var helpField = (row.data("helpfield") || "").toLowerCase();
+                    var donationField = (row.data("donation_field") || "").toLowerCase();
                     var dateText = row.find("td").eq(0).text();
                     var show = true;
                     if (selectedUserType && userType !== selectedUserType) show = false;
-                    if (selectedField && helpField !== selectedField) show = false;
+                    if (selectedDonationField && donationField !== selectedDonationField) show = false;
                     if (fromDate && dateText !== "-") {
                         var rowDate = new Date(dateText);
                         var from = new Date(fromDate);
@@ -134,7 +134,7 @@
                     row.toggle(show);
                 });
             }
-            $("select[name='userType'], select[name='field'], input[name='from'], input[name='to']").on('change', filterTable);
+            $("select[name='userType'], select[name='donation_field'], input[name='from'], input[name='to']").on('change', filterTable);
         });
     </script>
     <script>
