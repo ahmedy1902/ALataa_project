@@ -92,18 +92,44 @@ public class DonateController : Controller
             if (beneficiary == null || d.Amount < 1 || d.Amount > 1000000)
                 continue;
 
-            string name = beneficiary.charity_name ?? beneficiary.full_name;
-            string field = beneficiary.charity_sector ?? beneficiary.type_of_need;
-            string userType = beneficiary.charity_name != null ? "Charity" : "Beneficiary";
+            string name, field, userType;
+            if (beneficiary is CharityFeature charity)
+            {
+                name = charity.charity_name;
+                field = charity.charity_sector;
+                userType = "Charity";
+            }
+            else if (beneficiary is NeedyFeature needy)
+            {
+                name = needy.full_name;
+                field = needy.type_of_need;
+                userType = "Beneficiary";
+            }
+            else
+            {
+                continue;
+            }
+
+            // ≈Õœ«ÀÌ«  «·ÃÂ… «·„” ›Ìœ…
+            double recipient_x = beneficiary.x ?? 0;
+            double recipient_y = beneficiary.y ?? 0;
+
+            // ≈Õœ«ÀÌ«  «·„ »—⁄ (Ì„ﬂ‰ﬂ ·«Õﬁ« Ã·»Â« „‰ Õ”«» «·„” Œœ„ √Ê „‰ «·„ ’›Õ)
+            double donor_x = 0, donor_y = 0;
 
             var donation = new DonationFeature
             {
                 donor_name = user.Email,
                 recipient_name = name,
                 donation_field = field,
-                donation_date = DateTime.UtcNow
+                donation_amount = (double)d.Amount,
+                donation_date = DateTime.UtcNow,
+                donor_x = donor_x,
+                donor_y = donor_y,
+                recipient_x = recipient_x,
+                recipient_y = recipient_y
             };
-            await _arcGisService.AddDonationAsync(donation, 0, 0);
+            await _arcGisService.AddDonationAsync(donation);
             results.Add(new { id = d.BeneficiaryId });
         }
         return Json(new { success = true, updated = results });

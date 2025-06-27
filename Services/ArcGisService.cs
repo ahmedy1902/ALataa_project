@@ -9,31 +9,38 @@ using System;
 namespace Accounts.Services
 {
     public class ArcGisResponse<T> { public List<ArcGisFeature<T>> features { get; set; } }
-    public class ArcGisFeature<T> { public T attributes { get; set; } }
+    public class ArcGisFeature<T> { public T attributes { get; set; } public Geometry geometry { get; set; } }
+    public class Geometry { public double x { get; set; } public double y { get; set; } }
 
     public class CharityFeature
     {
         public int? objectid { get; set; }
         public string charity_name { get; set; }
         public string charity_sector { get; set; }
-        public double? how_much_do_you_need { get; set; } // «·Õﬁ· «·ÃœÌœ
-        // √÷› »«ﬁÌ «·ÕﬁÊ· Õ”» «·Õ«Ã…
+        public double? how_much_do_you_need { get; set; }
+        public double? x { get; set; } // Longitude
+        public double? y { get; set; } // Latitude
     }
     public class NeedyFeature
     {
         public int? objectid { get; set; }
         public string full_name { get; set; }
         public string type_of_need { get; set; }
-        public double? how_much_do_you_need { get; set; } // «·Õﬁ· «·ÃœÌœ
-        // √÷› »«ﬁÌ «·ÕﬁÊ· Õ”» «·Õ«Ã…
+        public double? how_much_do_you_need { get; set; }
+        public double? x { get; set; } // Longitude
+        public double? y { get; set; } // Latitude
     }
     public class DonationFeature
     {
         public string donor_name { get; set; }
         public string recipient_name { get; set; }
         public string donation_field { get; set; }
+        public double donation_amount { get; set; }
         public DateTime donation_date { get; set; }
-        // √÷› √Ì ÕﬁÊ· √Œ—Ï  —ÌœÂ«
+        public double donor_x { get; set; }
+        public double donor_y { get; set; }
+        public double recipient_x { get; set; }
+        public double recipient_y { get; set; }
     }
 
     public class ArcGisService
@@ -46,21 +53,29 @@ namespace Accounts.Services
 
         public async Task<List<CharityFeature>> GetCharitiesAsync()
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/query?where=1=1&outFields=*&f=json";
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/query?where=1=1&outFields=*&returnGeometry=true&f=json";
             var response = await _client.GetStringAsync(url);
             var data = JsonSerializer.Deserialize<ArcGisResponse<CharityFeature>>(response);
-            return data?.features?.Select(f => f.attributes).ToList() ?? new();
+            return data?.features?.Select(f => {
+                f.attributes.x = f.geometry?.x;
+                f.attributes.y = f.geometry?.y;
+                return f.attributes;
+            }).ToList() ?? new();
         }
 
         public async Task<List<NeedyFeature>> GetNeediesAsync()
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a_results/FeatureServer/0/query?where=1=1&outFields=*&f=json";
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a_results/FeatureServer/0/query?where=1=1&outFields=*&returnGeometry=true&f=json";
             var response = await _client.GetStringAsync(url);
             var data = JsonSerializer.Deserialize<ArcGisResponse<NeedyFeature>>(response);
-            return data?.features?.Select(f => f.attributes).ToList() ?? new();
+            return data?.features?.Select(f => {
+                f.attributes.x = f.geometry?.x;
+                f.attributes.y = f.geometry?.y;
+                return f.attributes;
+            }).ToList() ?? new();
         }
 
-        public async Task<bool> AddDonationAsync(DonationFeature donation, double x, double y)
+        public async Task<bool> AddDonationAsync(DonationFeature donation)
         {
             var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/Donations_made_by_donors/FeatureServer/0/addFeatures";
             var features = new[]
@@ -68,7 +83,7 @@ namespace Accounts.Services
                 new
                 {
                     attributes = donation,
-                    geometry = new { x, y, spatialReference = new { wkid = 4326 } }
+                    geometry = new { x = donation.donor_x, y = donation.donor_y, spatialReference = new { wkid = 4326 } }
                 }
             };
             var data = new { features, f = "json" };
