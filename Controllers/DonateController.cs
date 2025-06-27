@@ -67,8 +67,12 @@ public class DonateController : Controller
     [Authorize(Roles = "Donor")]
     public async Task<IActionResult> ViewDonationHistory()
     {
-        // Ì„ﬂ‰ Ã·» «· »—⁄«  „‰ ArcGIS ≈–« √—œ  ⁄—÷Â«
-        return View("ViewDonationHistory", new List<object>()); // ⁄œ· Õ”» «·Õ«Ã…
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+            return Unauthorized();
+
+        var donations = await _arcGisService.GetDonationsAsync(user.Email);
+        return View("ViewDonationHistory", donations);
     }
 
     [HttpPost]
@@ -78,6 +82,11 @@ public class DonateController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user == null)
             return Unauthorized();
+
+        // Ã·» »Ì«‰«  «·„ »—⁄ „‰ ·«Ì— «·„ »—⁄Ì‰
+        var donor = await _arcGisService.GetDonorByEmailAsync(user.Email);
+        if (donor == null)
+            return Json(new { success = false, message = "Donor email not found in donors layer." });
 
         var charities = await _arcGisService.GetCharitiesAsync();
         var needies = await _arcGisService.GetNeediesAsync();
@@ -114,8 +123,9 @@ public class DonateController : Controller
             double recipient_x = beneficiary.x ?? 0;
             double recipient_y = beneficiary.y ?? 0;
 
-            // ≈Õœ«ÀÌ«  «·„ »—⁄ (Ì„ﬂ‰ﬂ ·«Õﬁ« Ã·»Â« „‰ Õ”«» «·„” Œœ„ √Ê „‰ «·„ ’›Õ)
-            double donor_x = 0, donor_y = 0;
+            // ≈Õœ«ÀÌ«  «·„ »—⁄ „‰ ·«Ì— «·„ »—⁄Ì‰
+            double donor_x = donor.x ?? 0;
+            double donor_y = donor.y ?? 0;
 
             var donation = new DonationFeature
             {
