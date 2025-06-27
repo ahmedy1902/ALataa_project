@@ -3,8 +3,21 @@
     ViewData["Title"] = "Donation History";
     var userTypes = ViewBag.UserTypes as List<string> ?? new List<string>();
     var fields = ViewBag.Fields as List<string> ?? new List<string>();
-    decimal total = ViewBag.Total ?? 0;
     var accounts = ViewBag.Accounts as IEnumerable<dynamic> ?? new List<dynamic>();
+    // Õ”«» „Ã„Ê⁄ «· »—⁄« 
+    decimal total = 0;
+    if (Model != null)
+    {
+        foreach (var d in Model)
+        {
+            if (d.donation_amount != null)
+            {
+                decimal amount;
+                if (decimal.TryParse(d.donation_amount.ToString(), out amount))
+                    total += amount;
+            }
+        }
+    }
 }
 
 <h2 class="mb-4">Donation History</h2>
@@ -37,7 +50,7 @@
     </div>
 </form>
 
-<table class="table table-bordered table-striped">
+<table class="table table-bordered table-striped" id="donationHistoryTable">
     <thead>
         <tr>
             <th>Date</th>
@@ -75,7 +88,7 @@
                 }
                 var userType = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.userType ?? "-";
                 var helpField = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.HelpFields ?? d.donation_field ?? "-";
-                <tr>
+                <tr data-usertype="@userType" data-helpfield="@helpField">
                     <td>@dateStr</td>
                     <td>@(d.recipient_email ?? "-")</td>
                     <td>@userType</td>
@@ -91,6 +104,39 @@
 </div>
 
 @section Scripts {
+    <script>
+        // ›· —… «·ÃœÊ· Õ”» «·›·« —
+        $(function () {
+            function filterTable() {
+                var selectedUserType = $("select[name='userType']").val().toLowerCase();
+                var selectedField = $("select[name='field']").val().toLowerCase();
+                var fromDate = $("input[name='from']").val();
+                var toDate = $("input[name='to']").val();
+                $("#donationHistoryTable tbody tr").each(function () {
+                    var row = $(this);
+                    var userType = (row.data("usertype") || "").toLowerCase();
+                    var helpField = (row.data("helpfield") || "").toLowerCase();
+                    var dateText = row.find("td").eq(0).text();
+                    var show = true;
+                    if (selectedUserType && userType !== selectedUserType) show = false;
+                    if (selectedField && helpField !== selectedField) show = false;
+                    if (fromDate && dateText !== "-") {
+                        var rowDate = new Date(dateText);
+                        var from = new Date(fromDate);
+                        if (rowDate < from) show = false;
+                    }
+                    if (toDate && dateText !== "-") {
+                        var rowDate = new Date(dateText);
+                        var to = new Date(toDate);
+                        to.setDate(to.getDate() + 1); // include the day
+                        if (rowDate >= to) show = false;
+                    }
+                    row.toggle(show);
+                });
+            }
+            $("select[name='userType'], select[name='field'], input[name='from'], input[name='to']").on('change', filterTable);
+        });
+    </script>
     <script>
         $("#submitAllBtn").on("click", function () {
             if (donations.length === 0) return;

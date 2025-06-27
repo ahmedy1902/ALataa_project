@@ -156,8 +156,13 @@ public class DonateController : Controller
                 if (beneficiary.how_much_do_you_need != null)
                 {
                     double newNeeded = Math.Max(0, (beneficiary.how_much_do_you_need ?? 0) - (double)d.Amount);
-                    //  ÕœÌÀ ﬁÌ„… needed amount ›Ì ArcGIS
                     await _arcGisService.UpdateDonorNeededAmountAsync(name, newNeeded);
+                }
+                // Œ’„ «· »—⁄ „‰ needed amount ··„ »—⁄ ‰›”Â
+                if (donor.how_much_do_you_need != null)
+                {
+                    double newDonorNeeded = Math.Max(0, (donor.how_much_do_you_need ?? 0) - (double)d.Amount);
+                    await _arcGisService.UpdateDonorNeededAmountAsync(user.Email, newDonorNeeded);
                 }
             }
         }
