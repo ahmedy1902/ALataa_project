@@ -95,6 +95,7 @@ public class DonateController : Controller
         all.AddRange(needies);
         var results = new List<object>();
 
+        double totalDonated = 0;
         foreach (var d in donations)
         {
             var beneficiary = all.FirstOrDefault(b => (b.objectid ?? 0) == d.BeneficiaryId);
@@ -129,8 +130,8 @@ public class DonateController : Controller
 
             var donation = new DonationFeature
             {
-                donor_name = user.Email,
-                recipient_name = name,
+                donor_email = user.Email,
+                recipient_email = name,
                 donation_field = field,
                 donation_amount = (double)d.Amount,
                 donation_date = DateTime.UtcNow,
@@ -139,8 +140,18 @@ public class DonateController : Controller
                 recipient_x = recipient_x,
                 recipient_y = recipient_y
             };
-            await _arcGisService.AddDonationAsync(donation);
-            results.Add(new { id = d.BeneficiaryId });
+            var added = await _arcGisService.AddDonationAsync(donation);
+            if (added)
+            {
+                totalDonated += (double)d.Amount;
+                results.Add(new { id = d.BeneficiaryId });
+            }
+        }
+        // ÎÕã ÇáÊÈÑÚ ãä needed amount
+        if (totalDonated > 0 && donor.how_much_do_you_need.HasValue)
+        {
+            double newNeeded = Math.Max(0, donor.how_much_do_you_need.Value - totalDonated);
+            await _arcGisService.UpdateDonorNeededAmountAsync(user.Email, newNeeded);
         }
         return Json(new { success = true, updated = results });
     }

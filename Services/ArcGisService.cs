@@ -32,8 +32,8 @@ namespace Accounts.Services
     }
     public class DonationFeature
     {
-        public string donor_name { get; set; }
-        public string recipient_name { get; set; }
+        public string donor_email { get; set; }
+        public string recipient_email { get; set; }
         public string donation_field { get; set; }
         public double donation_amount { get; set; }
         public DateTime donation_date { get; set; }
@@ -45,11 +45,11 @@ namespace Accounts.Services
 
     public class ArcGisDonation
     {
-        public string donor_name { get; set; }
-        public string recipient_name { get; set; }
+        public string donor_email { get; set; }
+        public string recipient_email { get; set; }
         public string donation_field { get; set; }
         public double? donation_amount { get; set; }
-        public DateTime? donation_date { get; set; }
+        public long? donation_date { get; set; } // Epoch milliseconds
         public double? donor_x { get; set; }
         public double? donor_y { get; set; }
         public double? recipient_x { get; set; }
@@ -91,35 +91,71 @@ namespace Accounts.Services
         public async Task<bool> AddDonationAsync(DonationFeature donation)
         {
             var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/Donations_made_by_donors/FeatureServer/0/addFeatures";
+            var featuresArr = new[]
+            {
+                new
+                {
+                    attributes = new Dictionary<string, object>
+                    {
+                        ["donor_email"] = donation.donor_email ?? string.Empty,
+                        ["recipient_email"] = donation.recipient_email ?? string.Empty,
+                        ["donation_field"] = donation.donation_field ?? string.Empty,
+                        ["donation_amount"] = donation.donation_amount,
+                        ["donation_date"] = ((DateTimeOffset)donation.donation_date).ToUnixTimeMilliseconds(),
+                        ["donor_x"] = donation.donor_x,
+                        ["donor_y"] = donation.donor_y,
+                        ["recipient_x"] = donation.recipient_x,
+                        ["recipient_y"] = donation.recipient_y
+                    },
+                    geometry = new { x = donation.donor_x, y = donation.donor_y, spatialReference = new { wkid = 4326 } }
+                }
+            };
+            var featuresJson = JsonSerializer.Serialize(featuresArr);
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("features", featuresJson),
+                new KeyValuePair<string, string>("f", "json")
+            };
+            var content = new FormUrlEncodedContent(form);
+            var response = await _client.PostAsync(url, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"ArcGIS AddDonationAsync response: {responseContent}");
+            System.Diagnostics.Debug.WriteLine($"ArcGIS AddDonationAsync response: {responseContent}");
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"ArcGIS AddDonationAsync failed: {responseContent}");
+            }
+            return responseContent.Contains("success");
+        }
+
+        public async Task<bool> UpdateDonorNeededAmountAsync(string email, double newNeededAmount)
+        {
+            //  ÕœÌÀ needed amount ›Ì ·«Ì— «·„ »—⁄Ì‰
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c_results/FeatureServer/0/updateFeatures";
+            // Ã·» objectid ··„ »—⁄
+            var donor = await GetDonorByEmailAsync(email);
+            if (donor == null || donor.objectid == null)
+                return false;
             var features = new[]
             {
                 new
                 {
                     attributes = new {
-                        donor_name = donation.donor_name,
-                        recipient_name = donation.recipient_name,
-                        donation_field = donation.donation_field,
-                        donation_amount = donation.donation_amount,
-                        donation_date = donation.donation_date,
-                        donor_x = donation.donor_x,
-                        donor_y = donation.donor_y,
-                        recipient_x = donation.recipient_x,
-                        recipient_y = donation.recipient_y
-                    },
-                    geometry = new { x = donation.donor_x, y = donation.donor_y, spatialReference = new { wkid = 4326 } }
+                        objectid = donor.objectid,
+                        how_much_do_you_need = newNeededAmount
+                    }
                 }
             };
             var data = new { features, f = "json" };
             var json = JsonSerializer.Serialize(data);
             var response = await _client.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
             var responseContent = await response.Content.ReadAsStringAsync();
-            // Ì„ﬂ‰ﬂ ÿ»«⁄… responseContent ··œÌ»«ÃÂ
             return response.IsSuccessStatusCode && responseContent.Contains("success");
         }
 
         public async Task<List<ArcGisDonation>> GetDonationsAsync(string donorEmail)
         {
-            var url = $"https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/Donations_made_by_donors/FeatureServer/0/query?where=donor_name='{donorEmail}'&outFields=*&f=json";
+            var url = $"https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/Donations_made_by_donors/FeatureServer/0/query?where=donor_email='{donorEmail}'&outFields=*&f=json";
             var response = await _client.GetStringAsync(url);
             var data = JsonSerializer.Deserialize<ArcGisResponse<ArcGisDonation>>(response);
             return data?.features?.Select(f => f.attributes).ToList() ?? new();
