@@ -72,6 +72,13 @@ public class DonateController : Controller
             return Unauthorized();
 
         var donations = await _arcGisService.GetDonationsAsync(user.Email);
+        // Ã·» ﬁ«∆„… «·„” ›ÌœÌ‰ (charities + needies) · „—Ì—Â« ··›ÌÊ
+        var charities = await _arcGisService.GetCharitiesAsync();
+        var needies = await _arcGisService.GetNeediesAsync();
+        var accounts = new List<dynamic>();
+        accounts.AddRange(charities.Select(c => new { email = c.charity_name, userType = "Charity", HelpFields = c.charity_sector }));
+        accounts.AddRange(needies.Select(n => new { email = n.full_name, userType = "Beneficiary", HelpFields = n.type_of_need }));
+        ViewBag.Accounts = accounts;
         return View("ViewDonationHistory", donations);
     }
 
@@ -145,6 +152,13 @@ public class DonateController : Controller
             {
                 totalDonated += (double)d.Amount;
                 results.Add(new { id = d.BeneficiaryId });
+                // Œ’„ «· »—⁄ „‰ needed amount ··„” ›Ìœ
+                if (beneficiary.how_much_do_you_need != null)
+                {
+                    double newNeeded = Math.Max(0, (beneficiary.how_much_do_you_need ?? 0) - (double)d.Amount);
+                    //  ÕœÌÀ ﬁÌ„… needed amount ›Ì ArcGIS
+                    await _arcGisService.UpdateDonorNeededAmountAsync(name, newNeeded);
+                }
             }
         }
         // Œ’„ «· »—⁄ „‰ needed amount

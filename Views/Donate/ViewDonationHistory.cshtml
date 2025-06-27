@@ -4,7 +4,6 @@
     var userTypes = ViewBag.UserTypes as List<string> ?? new List<string>();
     var fields = ViewBag.Fields as List<string> ?? new List<string>();
     decimal total = ViewBag.Total ?? 0;
-    // Assume ViewBag.Accounts is passed from controller and contains all beneficiaries/charities with email and userType
     var accounts = ViewBag.Accounts as IEnumerable<dynamic> ?? new List<dynamic>();
 }
 
@@ -75,15 +74,13 @@
                     }
                 }
                 var userType = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.userType ?? "-";
+                var helpField = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.HelpFields ?? d.donation_field ?? "-";
                 <tr>
                     <td>@dateStr</td>
                     <td>@(d.recipient_email ?? "-")</td>
                     <td>@userType</td>
-                    @{
-                        var helpField = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.HelpFields ?? d.donation_field ?? "-";
-                    }
                     <td>@helpField</td>
-                    @(d.donation_amount ?? "-")
+                    <td>@(d.donation_amount ?? "-")</td>
                 </tr>
             }
         }
