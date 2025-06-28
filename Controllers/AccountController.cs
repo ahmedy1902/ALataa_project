@@ -45,7 +45,7 @@ public class AccountController : Controller
     {
         // Role-based validation
 
-         if (model.Role == "Charity")
+        if (model.Role == "Charity")
         {
             if (string.IsNullOrWhiteSpace(model.CharityName))
                 ModelState.AddModelError("CharityName", "Charity name is required.");
@@ -94,7 +94,7 @@ public class AccountController : Controller
 
             // Handle role-specific data
 
-             if (model.Role == "Charity")
+            if (model.Role == "Charity")
             {
                 // Send charity data directly to ArcGIS Feature Layer using HttpClient
                 var feature = new Dictionary<string, object>
@@ -135,34 +135,38 @@ public class AccountController : Controller
             }
             else if (model.Role == "Donor")
             {
-                // Send donor data to ArcGIS (with GPS)
-                var donorPayload = new {
-                    features = new[] {
-                        new {
-                            attributes = new Dictionary<string, object>
-                            {
-                                ["full_name"] = model.FullName ?? string.Empty,
-                                ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
-                                ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
-                                ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
-                                ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
-                                ["enter_your_e_mail"] = model.Email
-                            },
-                            geometry = new {
-                                x = model.Longitude ?? 0,
-                                y = model.Latitude ?? 0,
-                                spatialReference = new { wkid = 4326 }
-                            }
-                        }
+                // Send donor data to ArcGIS (with GPS) as form-data (not JSON body)
+                var donorFeature = new Dictionary<string, object>
+                {
+                    ["attributes"] = new Dictionary<string, object>
+                    {
+                        ["full_name"] = model.FullName ?? string.Empty,
+                        ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
+                        ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
+                        ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
+                        ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
+                        ["enter_your_e_mail"] = model.Email
                     },
-                    f = "json"
+                    ["geometry"] = new Dictionary<string, object>
+                    {
+                        ["x"] = model.Longitude ?? 0,
+                        ["y"] = model.Latitude ?? 0,
+                        ["spatialReference"] = new Dictionary<string, object> { ["wkid"] = 4326 }
+                    }
                 };
-                var donorJson = System.Text.Json.JsonSerializer.Serialize(donorPayload);
-                using var client = new System.Net.Http.HttpClient();
-                var resp = await client.PostAsync(
-                    "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c/FeatureServer/0/addFeatures",
-                    new System.Net.Http.StringContent(donorJson, System.Text.Encoding.UTF8, "application/json"));
-                // Optionally check resp.IsSuccessStatusCode
+                var featuresList = new List<object> { donorFeature };
+                var form = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("features", System.Text.Json.JsonSerializer.Serialize(featuresList)),
+                    new KeyValuePair<string, string>("f", "json"),
+                    new KeyValuePair<string, string>("rollbackOnFailure", "false")
+                };
+                using var httpClient = new System.Net.Http.HttpClient();
+                var content = new System.Net.Http.FormUrlEncodedContent(form);
+                var response = await httpClient.PostAsync(
+                    "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c_form/FeatureServer/0/addFeatures",
+                    content);
+                // Optionally check response.IsSuccessStatusCode
             }
 
             return RedirectToAction("Login", "Account");
@@ -264,34 +268,38 @@ public class AccountController : Controller
             await _roleManager.CreateAsync(new IdentityRole("Donor"));
         await _userManager.AddToRoleAsync(user, "Donor");
 
-        // Send donor data to ArcGIS (with GPS)
-        var donorPayload = new {
-            features = new[] {
-                new {
-                    attributes = new Dictionary<string, object>
-                    {
-                        ["full_name"] = model.FullName ?? string.Empty,
-                        ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
-                        ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
-                        ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
-                        ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
-                        ["enter_your_e_mail"] = model.Email
-                    },
-                    geometry = new {
-                        x = model.Longitude ?? 0,
-                        y = model.Latitude ?? 0,
-                        spatialReference = new { wkid = 4326 }
-                    }
-                }
+        // Send donor data to ArcGIS (with GPS) as form-data (not JSON body)
+        var donorFeature = new Dictionary<string, object>
+        {
+            ["attributes"] = new Dictionary<string, object>
+            {
+                ["full_name"] = model.FullName ?? string.Empty,
+                ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
+                ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
+                ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
+                ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
+                ["enter_your_e_mail"] = model.Email
             },
-            f = "json"
+            ["geometry"] = new Dictionary<string, object>
+            {
+                ["x"] = model.Longitude ?? 0,
+                ["y"] = model.Latitude ?? 0,
+                ["spatialReference"] = new Dictionary<string, object> { ["wkid"] = 4326 }
+            }
         };
-        var donorJson = System.Text.Json.JsonSerializer.Serialize(donorPayload);
-        using var client = new System.Net.Http.HttpClient();
-        var resp = await client.PostAsync(
-            "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c/FeatureServer/0/addFeatures",
-            new System.Net.Http.StringContent(donorJson, System.Text.Encoding.UTF8, "application/json"));
-        if (!resp.IsSuccessStatusCode)
+        var featuresList = new List<object> { donorFeature };
+        var form = new List<KeyValuePair<string, string>>
+        {
+            new KeyValuePair<string, string>("features", System.Text.Json.JsonSerializer.Serialize(featuresList)),
+            new KeyValuePair<string, string>("f", "json"),
+            new KeyValuePair<string, string>("rollbackOnFailure", "false")
+        };
+        using var httpClient = new System.Net.Http.HttpClient();
+        var content = new System.Net.Http.FormUrlEncodedContent(form);
+        var response = await httpClient.PostAsync(
+            "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c_form/FeatureServer/0/addFeatures",
+            content);
+        if (!response.IsSuccessStatusCode)
             return Json(new { success = false, message = "Failed to submit to ArcGIS Feature Layer." });
 
         return Json(new { success = true });
