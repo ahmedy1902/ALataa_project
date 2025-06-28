@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using Accounts.Models;
 using Accounts.Services;
 using Microsoft.Extensions.Logging;
+using System;
 
 public class AccountController : Controller
 {
@@ -98,6 +99,7 @@ public class AccountController : Controller
             {
                 // تحويل CharitySector إلى نص مفصول بفواصل
                 var charitySectorStr = model.CharitySector != null ? string.Join(",", model.CharitySector) : string.Empty;
+                var registrationDate = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                 // Send charity data directly to ArcGIS Feature Layer using HttpClient
                 var feature = new Dictionary<string, object>
                 {
@@ -108,7 +110,8 @@ public class AccountController : Controller
                         ["field_9"] = model.CasesSponsored,
                         ["field_10"] = model.MonthlyDonation,
                         ["how_much_do_you_need"] = model.CharityNeededAmount,
-                        ["enter_your_e_mail"] = model.Email
+                        ["enter_your_e_mail"] = model.Email,
+                        ["registration_date"] = registrationDate
                     },
                     ["geometry"] = new Dictionary<string, object>
                     {
@@ -137,8 +140,13 @@ public class AccountController : Controller
             }
             else if (model.Role == "Donor")
             {
-                // تحويل PreferredAidCategory إلى نص مفصول بفواصل
-                var preferredAidCategoryStr = (model.PreferredAidCategory != null && model.PreferredAidCategory.Any()) ? string.Join(",", model.PreferredAidCategory) : string.Empty;
+                // تجهيز PreferredAidCategory بنفس تنسيق السيرفر (استبدال الفراغات بـ _ والـ / بـ _/_)
+                string preferredAidCategoryStr = string.Empty;
+                if (model.PreferredAidCategory != null && model.PreferredAidCategory.Any())
+                {
+                    preferredAidCategoryStr = string.Join(",", model.PreferredAidCategory.Select(cat =>
+                        cat.Replace(" ", "_").Replace("/", "_/_")));
+                }
                 // Send donor data to ArcGIS (with GPS) as form-data (not JSON body)
                 var donorFeature = new Dictionary<string, object>
                 {
@@ -149,7 +157,7 @@ public class AccountController : Controller
                         ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
                         ["preferred_aid_category"] = preferredAidCategoryStr,
                         ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
-                        ["enter_your_e_mail"] = model.Email
+                        ["enter_your_e_mail"] = model.Email // دائماً من الحقل الرئيسي
                     },
                     ["geometry"] = new Dictionary<string, object>
                     {
@@ -272,9 +280,13 @@ public class AccountController : Controller
             await _roleManager.CreateAsync(new IdentityRole("Donor"));
         await _userManager.AddToRoleAsync(user, "Donor");
 
-        // تحويل PreferredAidCategory إلى نص مفصول بفواصل
-        var preferredAidCategoryStr = (model.PreferredAidCategory != null && model.PreferredAidCategory.Any()) ? string.Join(",", model.PreferredAidCategory) : string.Empty;
-        // Send donor data to ArcGIS (with GPS) as form-data (not JSON body)
+        // تجهيز PreferredAidCategory بنفس تنسيق السيرفر (استبدال الفراغات بـ _ والـ / بـ _/_)
+        string preferredAidCategoryStr = string.Empty;
+        if (model.PreferredAidCategory != null && model.PreferredAidCategory.Any())
+        {
+            preferredAidCategoryStr = string.Join(",", model.PreferredAidCategory.Select(cat =>
+                cat.Replace(" ", "_").Replace("/", "_/_")));
+        }
         var donorFeature = new Dictionary<string, object>
         {
             ["attributes"] = new Dictionary<string, object>
@@ -284,7 +296,7 @@ public class AccountController : Controller
                 ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
                 ["preferred_aid_category"] = preferredAidCategoryStr,
                 ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
-                ["enter_your_e_mail"] = model.Email
+                ["enter_your_e_mail"] = model.Email // دائماً من الحقل الرئيسي
             },
             ["geometry"] = new Dictionary<string, object>
             {

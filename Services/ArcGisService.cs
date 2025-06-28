@@ -181,6 +181,7 @@ namespace Accounts.Services
         {
             //  „  ’ÕÌÕ «·—«»ÿ ·Ì‘„· _results
             var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/addFeatures";
+            var registrationDate = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var payload = new
             {
                 features = new[] {
@@ -191,7 +192,8 @@ namespace Accounts.Services
                             field_9 = numberOfCasesSponsoredMonth,
                             field_10 = monthlyDonationAmount,
                             how_much_do_you_need = howMuchDoYouNeed,
-                            enter_your_e_mail = email
+                            enter_your_e_mail = email,
+                            registration_date = registrationDate
                         },
                         geometry = new {
                             x = x,
