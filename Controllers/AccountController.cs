@@ -49,7 +49,7 @@ public class AccountController : Controller
         {
             if (string.IsNullOrWhiteSpace(model.CharityName))
                 ModelState.AddModelError("CharityName", "Charity name is required.");
-            if (string.IsNullOrWhiteSpace(model.CharitySector))
+            if (model.CharitySector == null || !model.CharitySector.Any())
                 ModelState.AddModelError("CharitySector", "Charity sector is required.");
             if (string.IsNullOrWhiteSpace(model.CasesSponsored))
                 ModelState.AddModelError("CasesSponsored", "Number of cases sponsored is required.");
@@ -96,13 +96,15 @@ public class AccountController : Controller
 
             if (model.Role == "Charity")
             {
+                // تحويل CharitySector إلى نص مفصول بفواصل
+                var charitySectorStr = model.CharitySector != null ? string.Join(",", model.CharitySector) : string.Empty;
                 // Send charity data directly to ArcGIS Feature Layer using HttpClient
                 var feature = new Dictionary<string, object>
                 {
                     ["attributes"] = new Dictionary<string, object>
                     {
                         ["charity_name"] = model.CharityName,
-                        ["charity_sector"] = model.CharitySector,
+                        ["charity_sector"] = charitySectorStr,
                         ["field_9"] = model.CasesSponsored,
                         ["field_10"] = model.MonthlyDonation,
                         ["how_much_do_you_need"] = model.CharityNeededAmount,
@@ -135,6 +137,8 @@ public class AccountController : Controller
             }
             else if (model.Role == "Donor")
             {
+                // تحويل PreferredAidCategory إلى نص مفصول بفواصل
+                var preferredAidCategoryStr = (model.PreferredAidCategory != null && model.PreferredAidCategory.Any()) ? string.Join(",", model.PreferredAidCategory) : string.Empty;
                 // Send donor data to ArcGIS (with GPS) as form-data (not JSON body)
                 var donorFeature = new Dictionary<string, object>
                 {
@@ -143,7 +147,7 @@ public class AccountController : Controller
                         ["full_name"] = model.FullName ?? string.Empty,
                         ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
                         ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
-                        ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
+                        ["preferred_aid_category"] = preferredAidCategoryStr,
                         ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
                         ["enter_your_e_mail"] = model.Email
                     },
@@ -268,6 +272,8 @@ public class AccountController : Controller
             await _roleManager.CreateAsync(new IdentityRole("Donor"));
         await _userManager.AddToRoleAsync(user, "Donor");
 
+        // تحويل PreferredAidCategory إلى نص مفصول بفواصل
+        var preferredAidCategoryStr = (model.PreferredAidCategory != null && model.PreferredAidCategory.Any()) ? string.Join(",", model.PreferredAidCategory) : string.Empty;
         // Send donor data to ArcGIS (with GPS) as form-data (not JSON body)
         var donorFeature = new Dictionary<string, object>
         {
@@ -276,7 +282,7 @@ public class AccountController : Controller
                 ["full_name"] = model.FullName ?? string.Empty,
                 ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
                 ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
-                ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
+                ["preferred_aid_category"] = preferredAidCategoryStr,
                 ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
                 ["enter_your_e_mail"] = model.Email
             },

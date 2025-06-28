@@ -214,9 +214,11 @@ namespace Accounts.Services
         {
             try
             {
+                //  ÕÊÌ· CharitySector ≈·Ï ‰’ „›’Ê· »›Ê«’· ≈–« ﬂ«‰  ﬁ«∆„…
+                string charitySectorStr = model.CharitySector is List<string> list ? string.Join(",", list) : (model.CharitySector?.ToString() ?? string.Empty);
                 return await SendCharityDataAsync(
                     model.CharityName ?? string.Empty,
-                    model.CharitySector ?? string.Empty,
+                    charitySectorStr,
                     model.CasesSponsored ?? string.Empty,
                     model.MonthlyDonation ?? string.Empty,
                     model.CharityNeededAmount ?? 0,

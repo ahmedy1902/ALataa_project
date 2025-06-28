@@ -45,7 +45,7 @@ namespace Accounts.ViewModels
         public string? CharityName { get; set; }
 
         [Display(Name = "Charity Sector")]
-        public string? CharitySector { get; set; }
+        public List<string>? CharitySector { get; set; }
 
         [Display(Name = "Number of Cases Sponsored Monthly")]
         public string? CasesSponsored { get; set; }
@@ -67,7 +67,7 @@ namespace Accounts.ViewModels
         public double? DonationAmountInEgp { get; set; }
 
         [Display(Name = "Preferred Aid Category")]
-        public string? PreferredAidCategory { get; set; }
+        public List<string>? PreferredAidCategory { get; set; }
 
         [Display(Name = "Who Would You Like To Donate To")]
         public string? WhoWouldYouLikeToDonateTo { get; set; } // "A charity" or "A direct beneficiary"
@@ -91,7 +91,7 @@ namespace Accounts.ViewModels
                         new[] { nameof(CharityName) }));
                 }
 
-                if (string.IsNullOrWhiteSpace(CharitySector))
+                if (CharitySector == null || CharitySector.Count == 0)
                 {
                     results.Add(new ValidationResult(
                         "Charity sector is required.",
