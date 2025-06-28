@@ -62,6 +62,16 @@ public class AccountController : Controller
             if (!model.CharityNeededAmount.HasValue || model.CharityNeededAmount <= 0)
                 ModelState.AddModelError("CharityNeededAmount", "Needed amount is required for charities.");
         }
+        else if (model.Role == "Donor")
+        {
+            // تحقق من الحقول المطلوبة للمتبرع
+            if (string.IsNullOrWhiteSpace(model.FullName))
+                ModelState.AddModelError("FullName", "Full name is required for donors.");
+            if (string.IsNullOrWhiteSpace(model.TypeOfDonation))
+                ModelState.AddModelError("TypeOfDonation", "Type of donation is required for donors.");
+            if (!model.DonationAmountInEgp.HasValue || model.DonationAmountInEgp <= 0)
+                ModelState.AddModelError("DonationAmountInEgp", "Donation amount is required for donors.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -104,12 +114,46 @@ public class AccountController : Controller
             }
             else if (model.Role == "Charity")
             {
-                // Send charity data to ArcGIS
-                await _arcGisService.SendCharityDataAsync(model);
+                // Send charity data directly to ArcGIS Feature Layer using HttpClient
+                var feature = new Dictionary<string, object>
+                {
+                    ["attributes"] = new Dictionary<string, object>
+                    {
+                        ["charity_name"] = model.CharityName,
+                        ["charity_sector"] = model.CharitySector,
+                        ["field_9"] = model.CasesSponsored,
+                        ["field_10"] = model.MonthlyDonation,
+                        ["how_much_do_you_need"] = model.CharityNeededAmount,
+                        ["enter_your_e_mail"] = model.Email
+                    },
+                    ["geometry"] = new Dictionary<string, object>
+                    {
+                        ["x"] = model.Longitude ?? 0,
+                        ["y"] = model.Latitude ?? 0,
+                        ["spatialReference"] = new Dictionary<string, object> { ["wkid"] = 4326 }
+                    }
+                };
+                var featuresList = new List<object> { feature };
+                var form = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("features", System.Text.Json.JsonSerializer.Serialize(featuresList)),
+                    new KeyValuePair<string, string>("f", "json"),
+                    new KeyValuePair<string, string>("rollbackOnFailure", "false")
+                };
+                using var httpClient = new System.Net.Http.HttpClient();
+                var content = new System.Net.Http.FormUrlEncodedContent(form);
+                var response = await httpClient.PostAsync(
+                    "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/addFeatures",
+                    content);
+                if (!response.IsSuccessStatusCode)
+                {
+                    ModelState.AddModelError("RegisterError", "Failed to submit to ArcGIS Feature Layer.");
+                    return View(model);
+                }
             }
             else if (model.Role == "Donor")
             {
-                // Send donor data to ArcGIS
+                // Send donor data to ArcGIS (with GPS)
                 var donorPayload = new {
                     features = new[] {
                         new {
@@ -121,6 +165,11 @@ public class AccountController : Controller
                                 ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
                                 ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
                                 ["enter_your_e_mail"] = model.Email
+                            },
+                            geometry = new {
+                                x = model.Longitude ?? 0,
+                                y = model.Latitude ?? 0,
+                                spatialReference = new { wkid = 4326 }
                             }
                         }
                     },

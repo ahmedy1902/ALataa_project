@@ -179,7 +179,8 @@ namespace Accounts.Services
         // Send charity registration data to ArcGIS Feature Layer
         public async Task<bool> SendCharityDataAsync(string charityName, string charitySector, string numberOfCasesSponsoredMonth, string monthlyDonationAmount, double howMuchDoYouNeed, string email, double x, double y)
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/addFeatures";
+            //  „  ’ÕÌÕ «·—«»ÿ ·Ì‘„· _results
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/addFeatures";
             var payload = new
             {
                 features = new[] {
