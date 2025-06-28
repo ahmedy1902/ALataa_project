@@ -131,6 +131,70 @@ namespace Accounts.Services
             return responseContent.Contains("success");
         }
 
+        //  ÕœÌÀ «·„»·€ «·„ÿ·Ê» ··Ã„⁄Ì… «·ŒÌ—Ì…
+        public async Task<bool> UpdateCharityNeededAmountAsync(int objectId, double newNeededAmount)
+        {
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/updateFeatures";
+
+            var featuresArr = new[]
+            {
+                new
+                {
+                    attributes = new Dictionary<string, object>
+                    {
+                        ["objectid"] = objectId,
+                        ["how_much_do_you_need"] = newNeededAmount
+                    }
+                }
+            };
+
+            var featuresJson = JsonSerializer.Serialize(featuresArr);
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("features", featuresJson),
+                new KeyValuePair<string, string>("f", "json")
+            };
+
+            var content = new FormUrlEncodedContent(form);
+            var response = await _client.PostAsync(url, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            Console.WriteLine($"UpdateCharityNeededAmount response: {responseContent}");
+            return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+        }
+
+        //  ÕœÌÀ «·„»·€ «·„ÿ·Ê» ··„Õ «Ã
+        public async Task<bool> UpdateNeedyNeededAmountAsync(int objectId, double newNeededAmount)
+        {
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a_results/FeatureServer/0/updateFeatures";
+
+            var featuresArr = new[]
+            {
+                new
+                {
+                    attributes = new Dictionary<string, object>
+                    {
+                        ["objectid"] = objectId,
+                        ["how_much_do_you_need"] = newNeededAmount
+                    }
+                }
+            };
+
+            var featuresJson = JsonSerializer.Serialize(featuresArr);
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("features", featuresJson),
+                new KeyValuePair<string, string>("f", "json")
+            };
+
+            var content = new FormUrlEncodedContent(form);
+            var response = await _client.PostAsync(url, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            Console.WriteLine($"UpdateNeedyNeededAmount response: {responseContent}");
+            return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+        }
+
         public async Task<bool> UpdateDonorNeededAmountAsync(string email, double newNeededAmount)
         {
             //  ÕœÌÀ needed amount ›Ì ·«Ì— «·„ »—⁄Ì‰
@@ -139,21 +203,44 @@ namespace Accounts.Services
             var donor = await GetDonorByEmailAsync(email);
             if (donor == null || donor.objectid == null)
                 return false;
-            var features = new[]
+
+            var featuresArr = new[]
             {
                 new
                 {
-                    attributes = new {
-                        objectid = donor.objectid,
-                        how_much_do_you_need = newNeededAmount
+                    attributes = new Dictionary<string, object>
+                    {
+                        ["objectid"] = donor.objectid,
+                        ["how_much_do_you_need"] = newNeededAmount
                     }
                 }
             };
-            var data = new { features, f = "json" };
-            var json = JsonSerializer.Serialize(data);
-            var response = await _client.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
+
+            var featuresJson = JsonSerializer.Serialize(featuresArr);
+            var form = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("features", featuresJson),
+                new KeyValuePair<string, string>("f", "json")
+            };
+
+            var content = new FormUrlEncodedContent(form);
+            var response = await _client.PostAsync(url, content);
             var responseContent = await response.Content.ReadAsStringAsync();
-            return response.IsSuccessStatusCode && responseContent.Contains("success");
+            return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+        }
+
+        //  ÕœÌÀ needed amount ··„” ›Ìœ (charity √Ê needy) - deprecated, use specific methods above
+        public async Task<bool> UpdateBeneficiaryNeededAmountAsync(string beneficiaryType, int objectId, double newNeededAmount)
+        {
+            if (beneficiaryType == "Charity")
+            {
+                return await UpdateCharityNeededAmountAsync(objectId, newNeededAmount);
+            }
+            else if (beneficiaryType == "Beneficiary")
+            {
+                return await UpdateNeedyNeededAmountAsync(objectId, newNeededAmount);
+            }
+            return false;
         }
 
         public async Task<List<ArcGisDonation>> GetDonationsAsync(string donorEmail)

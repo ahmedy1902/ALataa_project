@@ -1,10 +1,29 @@
-@model IEnumerable<dynamic>
+Ôªø@model IEnumerable<dynamic>
 @{
     ViewData["Title"] = "Donation History";
-    var userTypes = ViewBag.UserTypes as List<string> ?? new List<string>();
-    var fields = ViewBag.Fields as List<string> ?? new List<string>();
     var accounts = ViewBag.Accounts as IEnumerable<dynamic> ?? new List<dynamic>();
-    // Õ”«» „Ã„Ê⁄ «· »—⁄« 
+
+    // ÿßÿ≥ÿ™ÿÆÿ±ÿßÿ¨ ÿßŸÑŸÇŸäŸÖ ÿßŸÑŸÅÿ±ŸäÿØÿ© ŸÑŸÑŸÅŸÑÿßÿ™ÿ±
+    var userTypes = new List<string>();
+    var fields = new List<string>();
+
+    if (Model != null)
+    {
+        foreach (var d in Model)
+        {
+            var account = accounts.FirstOrDefault(x => x.email == d.recipient_email);
+            if (account != null)
+            {
+                if (!userTypes.Contains(account.userType))
+                    userTypes.Add(account.userType);
+
+                if (!string.IsNullOrEmpty(account.HelpFields) && !fields.Contains(account.HelpFields))
+                    fields.Add(account.HelpFields);
+            }
+        }
+    }
+
+    // ÿ≠ÿ≥ÿßÿ® ŸÖÿ¨ŸÖŸàÿπ ÿßŸÑÿ™ÿ®ÿ±ÿπÿßÿ™
     decimal total = 0;
     if (Model != null)
     {
@@ -20,148 +39,209 @@
     }
 }
 
-<h2 class="mb-4">Donation History</h2>
-<form method="get" class="row g-3 mb-3">
-    <div class="col-md-3">
-        <label>User Type</label>
-        <select name="userType" class="form-control">
-            <option value="">All</option>
-            @foreach (var t in userTypes) { <option value="@t">@t</option> }
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label>donation_field</label>
-        <select name="donation_field" class="form-control">
-            <option value="">All</option>
-            @foreach (var f in fields) { <option value="@f">@f</option> }
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label>From Date</label>
-        <input type="date" name="from" class="form-control" />
-    </div>
-    <div class="col-md-3">
-        <label>To Date</label>
-        <input type="date" name="to" class="form-control" />
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-primary">Filter</button>
-        <a href="/Donate" class="btn btn-secondary">Donate page</a>
-    </div>
-</form>
+<div class="container py-4">
+    <h2 class="mb-4">Donation History</h2>
 
-<table class="table table-bordered table-striped" id="donationHistoryTable">
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Beneficiary Name</th>
-            <th>User Type</th>
-            <th>donation_field</th>
-            <th>Donation Amount</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (Model != null)
-        {
-            foreach (var d in Model)
-            {
-                string dateStr = "-";
-                if (d.donation_date != null)
-                {
-                    if (d.donation_date is DateTime)
-                    {
-                        dateStr = ((DateTime)d.donation_date).ToString("yyyy-MM-dd HH:mm");
-                    }
-                    else
-                    {
-                        var msObj = d.donation_date;
-                        long ms = 0;
-                        if (msObj is long)
-                            ms = (long)msObj;
-                        else if (msObj is int)
-                            ms = (int)msObj;
-                        else
-                            long.TryParse(msObj.ToString(), out ms);
-                        if (ms > 0)
-                            dateStr = DateTimeOffset.FromUnixTimeMilliseconds(ms).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-                    }
-                }
-                var userType = accounts.FirstOrDefault(x => x.email == d.recipient_email)?.userType ?? "-";
-                var donationField = d.donation_field ?? accounts.FirstOrDefault(x => x.email == d.recipient_email)?.HelpFields ?? "-";
-                <tr data-usertype="@userType.ToLower()" data-donation_field="@donationField.ToLower()">
-                    <td>@dateStr</td>
-                    <td>@(d.recipient_email ?? "-")</td>
-                    <td>@userType</td>
-                    <td>@donationField</td>
-                    <td>@(d.donation_amount ?? "-")</td>
-                </tr>
-            }
-        }
-    </tbody>
-</table>
-<div class="mt-3">
-    <strong>Total:</strong> <span id="totalAmount">@total</span>
+    <!-- ÿßŸÑŸÅŸÑÿßÿ™ÿ± -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">User Type</label>
+                    <select id="userTypeFilter" class="form-control">
+                        <option value="">All Types</option>
+                        @foreach (var t in userTypes)
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Donation Field</label>
+                    <select id="fieldFilter" class="form-control">
+                        <option value="">All Fields</option>
+                        @foreach (var f in fields)
+                        {
+                            <option value="@f">@f</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">From Date</label>
+                    <input type="date" id="fromDate" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">To Date</label>
+                    <input type="date" id="toDate" class="form-control" />
+                </div>
+                <div class="col-12">
+                    <button type="button" id="clearFilters" class="btn btn-secondary me-2">Clear Filters</button>
+                    <a href="/Donate" class="btn btn-primary">Back to Donate</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ÿ¨ÿØŸàŸÑ ÿßŸÑÿ™ÿ®ÿ±ÿπÿßÿ™ -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="donationHistoryTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Beneficiary Name</th>
+                            <th>User Type</th>
+                            <th>Donation Field</th>
+                            <th>Donation Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null)
+                        {
+                            foreach (var d in Model)
+                            {
+                                string dateStr = "-";
+                                if (d.donation_date != null)
+                                {
+                                    if (d.donation_date is DateTime)
+                                    {
+                                        dateStr = ((DateTime)d.donation_date).ToString("yyyy-MM-dd HH:mm");
+                                    }
+                                    else
+                                    {
+                                        var msObj = d.donation_date;
+                                        long ms = 0;
+                                        if (msObj is long)
+                                            ms = (long)msObj;
+                                        else if (msObj is int)
+                                            ms = (int)msObj;
+                                        else
+                                            long.TryParse(msObj.ToString(), out ms);
+                                        if (ms > 0)
+                                            dateStr = DateTimeOffset.FromUnixTimeMilliseconds(ms).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                                    }
+                                }
+
+                                var account = accounts.FirstOrDefault(x => x.email == d.recipient_email);
+                                var userType = account?.userType ?? "-";
+                                var donationField = d.donation_field ?? account?.HelpFields ?? "-";
+
+                                <tr data-usertype="@userType"
+                                    data-field="@donationField"
+                                    data-date="@dateStr">
+                                    <td>@dateStr</td>
+                                    <td>@(d.recipient_email ?? "-")</td>
+                                    <td>@userType</td>
+                                    <td>@donationField</td>
+                                    <td class="donation-amount">@(d.donation_amount ?? "-")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-3 p-3 bg-light rounded">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Total Donations: </strong>
+                        <span id="totalAmount" class="fs-5 text-primary">0</span>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <strong>Visible Rows: </strong>
+                        <span id="visibleCount" class="fs-5 text-info">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
-        // ›· —… «·ÃœÊ· Õ”» «·›·« —
         $(function () {
+            function normalizeText(text) {
+                return (text || "").toString().trim().toLowerCase();
+            }
+
+            function updateStats() {
+                var visibleRows = $("#donationHistoryTable tbody tr:visible");
+                var visibleCount = visibleRows.length;
+                var visibleTotal = 0;
+
+                visibleRows.each(function () {
+                    var amountText = $(this).find('.donation-amount').text();
+                    var amount = parseFloat(amountText.replace(/[^0-9.-]/g, ''));
+                    if (!isNaN(amount)) {
+                        visibleTotal += amount;
+                    }
+                });
+
+                $("#visibleCount").text(visibleCount);
+        $("#totalAmount").text(visibleTotal.toLocaleString('en', {
+            style: 'currency',
+            currency: 'EGP'
+        }));
+            }
+
             function filterTable() {
-                var selectedUserType = $("select[name='userType']").val().toLowerCase();
-                var selectedDonationField = $("select[name='donation_field']").val().toLowerCase();
-                var fromDate = $("input[name='from']").val();
-                var toDate = $("input[name='to']").val();
+                var selectedUserType = normalizeText($("#userTypeFilter").val());
+                var selectedField = normalizeText($("#fieldFilter").val());
+                var fromDate = $("#fromDate").val();
+                var toDate = $("#toDate").val();
+
                 $("#donationHistoryTable tbody tr").each(function () {
                     var row = $(this);
-                    var userType = (row.data("usertype") || "").toLowerCase();
-                    var donationField = (row.data("donation_field") || "").toLowerCase();
-                    var dateText = row.find("td").eq(0).text();
+                    var userType = normalizeText(row.data("usertype"));
+                    var field = normalizeText(row.data("field"));
+                    var dateText = row.data("date") || "";
+
                     var show = true;
-                    if (selectedUserType && userType !== selectedUserType) show = false;
-                    if (selectedDonationField && donationField !== selectedDonationField) show = false;
-                    if (fromDate && dateText !== "-") {
+
+                    if (selectedUserType && userType !== selectedUserType) {
+                        show = false;
+                    }
+
+                    if (selectedField && field !== selectedField) {
+                        show = false;
+                    }
+
+                    if (fromDate && dateText !== "-" && dateText) {
                         var rowDate = new Date(dateText);
                         var from = new Date(fromDate);
-                        if (rowDate < from) show = false;
+                        if (rowDate < from) {
+                            show = false;
+                        }
                     }
-                    if (toDate && dateText !== "-") {
+
+                    if (toDate && dateText !== "-" && dateText) {
                         var rowDate = new Date(dateText);
                         var to = new Date(toDate);
-                        to.setDate(to.getDate() + 1); // include the day
-                        if (rowDate >= to) show = false;
+                        to.setHours(23, 59, 59, 999);
+                        if (rowDate > to) {
+                            show = false;
+                        }
                     }
+
                     row.toggle(show);
                 });
+
+                updateStats();
             }
-            $("select[name='userType'], select[name='donation_field'], input[name='from'], input[name='to']").on('change', filterTable);
-        });
-    </script>
-    <script>
-        $("#submitAllBtn").on("click", function () {
-            if (donations.length === 0) return;
-            // AJAX submit
-            const data = donations.map(d => ({
-                BeneficiaryId: d.id, // ÌÃ» √‰ ÌﬂÊ‰ «”„ «·Õﬁ· „ÿ«»ﬁ« ·„« ›Ì C#
-                Amount: d.amount
-            }));
-            $.ajax({
-                url: '/Donate/SubmitDonations',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                success: function (res) {
-                    if (res.success) {
-                        alert('Donations have been successfully recorded!');
-                        location.reload();
-                    } else {
-                        alert('An error occurred while saving!');
-                    }
-                },
-                error: function () {
-                    alert('An error occurred while saving!');
-                }
+
+            $("#userTypeFilter, #fieldFilter, #fromDate, #toDate").on('change', filterTable);
+
+            $("#clearFilters").on('click', function () {
+                $("#userTypeFilter").val("");
+                $("#fieldFilter").val("");
+                $("#fromDate").val("");
+                $("#toDate").val("");
+                filterTable();
             });
+
+            // ‚úÖ ÿ™ŸÅÿπŸäŸÑ ÿßŸÑŸÅŸÑÿ™ÿ±ÿ© ŸÅŸàÿ±Ÿãÿß ÿπŸÜÿØ ÿ™ÿ≠ŸÖŸäŸÑ ÿßŸÑÿµŸÅÿ≠ÿ©
+            filterTable();
         });
     </script>
 }
