@@ -223,7 +223,8 @@ public class AccountController : Controller
                 }
                 if (roles.Contains("Beneficiary"))
                 {
-                    return RedirectToAction("Index", "Home");
+                    // إعادة التوجيه إلى رابط ArcGIS إذا كان Beneficiary
+                    return Redirect("https://arcg.is/1Pj9nH2");
                 }
                 if (roles.Contains("Charity"))
                 {
