@@ -73,8 +73,7 @@
                         </div>
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" id="showAllBtn">Show All</button>
-                            <button type="button" class="btn btn-outline-info" id="showSelectedBtn" disabled>Show Selected (<span id="selectionCount">0</span>)</button>
-                            <button type="button" class="btn btn-outline-danger" id="clearSelectionBtn" title="Clear all selections"><i class="fas fa-times"></i> Clear</button>
+                            <button type="button" class="btn btn-outline-danger" id="clearSelectionBtn" title="Clear all selections"><i class="fas fa-times"></i> Clear Selections</button>
                         </div>
                         <a href="/Donate/ViewDonationHistory" class="btn btn-sm btn-outline-secondary"><i class="fas fa-history"></i> View History</a>
                     </div>
@@ -84,7 +83,7 @@
                         <table class="table table-bordered table-hover align-middle" id="beneficiariesTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th width="5%"><input type="checkbox" id="selectAllCheckbox" title="Select/Deselect All Visible"></th>
+                                    <th width="5%"><input type="checkbox" id="selectAllCheckbox" title="Select/Deselect All Visible on this page"></th>
                                     <th width="25%">Name</th>
                                     <th width="15%">Needed</th>
                                     <th width="15%">Type</th>
@@ -96,6 +95,22 @@
                                 <tr><td colspan="6" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <label for="rowsPerPage" class="form-label me-2 mb-0">Rows per page:</label>
+                        <select id="rowsPerPage" class="form-select form-select-sm d-inline-block" style="width: 75px;">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div id="paginationInfo" class="text-muted"></div>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn" disabled><i class="fas fa-arrow-left"></i> Previous</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn" disabled>Next <i class="fas fa-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -150,6 +165,9 @@
         let selectedFeatures = new Map();
         let isSketchActive = false;
         let allBeneficiaries = [];
+        let filteredBeneficiaries = [];
+        let currentPage = 1;
+        let rowsPerPage = 25;
 
         const NEEDIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0";
         const CHARITIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0";
@@ -159,66 +177,73 @@
             bindEvents();
         });
 
-        function initializeMap() {
-            require([
-                "esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer",
-                "esri/layers/GraphicsLayer", "esri/widgets/Sketch/SketchViewModel"
-            ], function (Map, MapView, FeatureLayer, GraphicsLayer, SketchViewModel) {
-                const map = new Map({ basemap: "streets-navigation-vector" });
-                mapView = new MapView({
-                    container: "mapViewDiv", map: map,
-                    center: [31.2357, 30.0444], zoom: 8,
-                    popup: { dockEnabled: true, dockOptions: { breakpoint: false, position: "top-right" } },
-                    highlightOptions: { color: [255, 255, 0, 1], haloOpacity: 0.9, fillOpacity: 0.4 }
-                });
-
-                neediesLayer = new FeatureLayer({ url: NEEDIES_SERVICE_URL, title: "Needies", outFields: ["*"], popupTemplate: createPopupTemplate('needy') });
-                charitiesLayer = new FeatureLayer({ url: CHARITIES_SERVICE_URL, title: "Charities", outFields: ["*"], popupTemplate: createPopupTemplate('charity') });
-                map.addMany([neediesLayer, charitiesLayer]);
-
-                const sketchLayer = new GraphicsLayer();
-                map.add(sketchLayer);
-                sketchViewModel = new SketchViewModel({
-                    view: mapView, layer: sketchLayer,
-                    polygonSymbol: { type: "simple-fill", color: [51, 51, 204, 0.2], outline: { color: "#3333cc", width: 2 } }
-                });
-
-                mapView.on("click", handleMapClick);
-                sketchViewModel.on("create", handleSketchCreate);
-                loadBeneficiariesData();
+        function bindEvents() {
+            $(document).on("input", "#TotalDonation", updateRemaining);
+            $(document).on("click", ".donate-btn", handleDonateClick);
+            $(document).on("click", ".remove-donation-btn", handleRemoveDonation);
+            $('#submitAllBtn').on("click", submitAllDonations);
+            $('#roleFilter, #fieldFilter, #hideZeroNeededFilter, input[name="layerFilter"]').on('change', () => {
+                currentPage = 1;
+                updateLayerVisibility();
+                applyFiltersAndRenderTable();
             });
+            $('#showAllBtn').on('click', function() {
+                $('#roleFilter, #fieldFilter').val('');
+                $('#hideZeroNeededFilter').prop('checked', false);
+                applyFiltersAndRenderTable();
+            });
+            $('#rowsPerPage').on('change', function() {
+                rowsPerPage = parseInt($(this).val(), 10);
+                currentPage = 1;
+                renderTablePage();
+            });
+            $('#prevPageBtn').on('click', () => { if (currentPage > 1) { currentPage--; renderTablePage(); } });
+            $('#nextPageBtn').on('click', () => {
+                const totalPages = Math.ceil(filteredBeneficiaries.length / rowsPerPage);
+                if (currentPage < totalPages) { currentPage++; renderTablePage(); }
+            });
+            $('#toggleSketchBtn').on('click', () => toggleSketchMode(!isSketchActive));
+            $('#clearSelectionBtn').on('click', clearAllSelections);
+            $('#zoomToAllBtn').on('click', zoomToAll);
+            $('#selectAllCheckbox').on('change', handleSelectAll);
+            $(document).on('change', '.row-checkbox', handleRowCheckboxChange);
         }
 
-        function loadBeneficiariesData() {
-            showLoadingIndicator(true);
-            Promise.all([
-                $.getJSON(`${NEEDIES_SERVICE_URL}/query?where=1=1&outFields=*&f=json`),
-                $.getJSON(`${CHARITIES_SERVICE_URL}/query?where=1=1&outFields=*&f=json`)
-            ]).then(([neediesRes, charitiesRes]) => {
-                allBeneficiaries = [];
-                if (neediesRes.features) allBeneficiaries.push(...neediesRes.features.map(f => processFeature(f, 'needy')));
-                if (charitiesRes.features) allBeneficiaries.push(...charitiesRes.features.map(f => processFeature(f, 'charity')));
-                populateFilters();
-                populateTable();
-                applyFilters();
-            }).catch(handleDataLoadError).always(() => showLoadingIndicator(false));
+        function applyFiltersAndRenderTable() {
+            const roleFilter = $('#roleFilter').val();
+            const fieldFilter = $('#fieldFilter').val();
+            const hideZero = $('#hideZeroNeededFilter').prop('checked');
+            const layerType = $('input[name="layerFilter"]:checked').val();
+            filteredBeneficiaries = allBeneficiaries.filter(b => {
+                const layerMatch = layerType === 'both' || b.layerType === layerType;
+                const zeroMatch = !hideZero || b.neededAmount > 0;
+                const roleMatch = !roleFilter || b.userType === roleFilter;
+                const fieldMatch = !fieldFilter || b.helpFields.some(f => f.trim() === fieldFilter);
+                return layerMatch && zeroMatch && roleMatch && fieldMatch;
+            });
+            renderTablePage();
         }
 
-        function populateTable() {
-            const tbody = $("#beneficiariesTable tbody");
-            tbody.empty();
-            if(!allBeneficiaries.length) {
-                tbody.html('<tr><td colspan="6" class="text-center p-5">No beneficiaries found.</td></tr>');
+        function renderTablePage() {
+            const tbody = $("#beneficiariesTable tbody").empty();
+            updatePaginationControls(filteredBeneficiaries.length);
+
+            if (filteredBeneficiaries.length === 0) {
+                tbody.html('<tr><td colspan="6" class="text-center p-5">No matching beneficiaries found.</td></tr>');
                 return;
             }
-            allBeneficiaries.forEach(b => {
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const pageItems = filteredBeneficiaries.slice(startIndex, startIndex + rowsPerPage);
+
+            pageItems.forEach(b => {
                 const fieldsHtml = b.helpFields.map(field => `<span class="badge bg-info text-dark me-1">${field.trim()}</span>`).join('');
                 tbody.append(
                     `<tr data-id="${b.id}" class="beneficiary-row">
                         <td><input type="checkbox" class="form-check-input row-checkbox" data-id="${b.id}"></td>
                         <td class="fw-semibold">${b.name}</td>
                         <td class="text-end fw-bold text-danger">${formatCurrency(b.neededAmount)}</td>
-                        <td><span class="badge" style="background-color: goldenrod; color: white; font-size: 120%; padding: 0.5em 0.7em;">${b.userType}</span></td>
+                        <td><span class="badge" style="background-color: goldenrod; color: white; font-size: 1.2em; padding: 0.4em 0.6em;">${b.userType}</span></td>
                         <td>${fieldsHtml}</td>
                         <td>
                             <div class="input-group input-group-sm">
@@ -231,84 +256,65 @@
             updateTableSelectionVisuals();
         }
 
+        // --- All other functions are provided below ---
+        function initializeMap() {
+            require([
+                "esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer",
+                "esri/layers/GraphicsLayer", "esri/widgets/Sketch/SketchViewModel"
+            ], function (Map, MapView, FeatureLayer, GraphicsLayer, SketchViewModel) {
+                const map = new Map({ basemap: "streets-navigation-vector" });
+                mapView = new MapView({
+                    container: "mapViewDiv", map: map,
+                    center: [31.2357, 30.0444], zoom: 8,
+                    popup: { dockEnabled: true, dockOptions: { breakpoint: false, position: "top-right" } },
+                    highlightOptions: { color: [255, 255, 0, 1], haloOpacity: 0.9, fillOpacity: 0.4 }
+                });
+                neediesLayer = new FeatureLayer({ url: NEEDIES_SERVICE_URL, title: "Needies", outFields: ["*"], popupTemplate: createPopupTemplate('needy') });
+                charitiesLayer = new FeatureLayer({ url: CHARITIES_SERVICE_URL, title: "Charities", outFields: ["*"], popupTemplate: createPopupTemplate('charity') });
+                map.addMany([neediesLayer, charitiesLayer]);
+                const sketchLayer = new GraphicsLayer();
+                map.add(sketchLayer);
+                sketchViewModel = new SketchViewModel({
+                    view: mapView, layer: sketchLayer,
+                    polygonSymbol: { type: "simple-fill", color: [51, 51, 204, 0.2], outline: { color: "#3333cc", width: 2 } }
+                });
+                mapView.on("click", handleMapClick);
+                sketchViewModel.on("create", handleSketchCreate);
+                loadBeneficiariesData();
+            });
+        }
+        function loadBeneficiariesData() {
+            showLoadingIndicator(true);
+            Promise.all([
+                $.getJSON(`${NEEDIES_SERVICE_URL}/query?where=1=1&outFields=*&f=json`),
+                $.getJSON(`${CHARITIES_SERVICE_URL}/query?where=1=1&outFields=*&f=json`)
+            ]).then(([neediesRes, charitiesRes]) => {
+                allBeneficiaries = [];
+                if (neediesRes && neediesRes.features) allBeneficiaries.push(...neediesRes.features.map(f => processFeature(f, 'needy')));
+                if (charitiesRes && charitiesRes.features) allBeneficiaries.push(...charitiesRes.features.map(f => processFeature(f, 'charity')));
+                populateFilters();
+                currentPage = 1;
+                applyFiltersAndRenderTable();
+            }).catch(handleDataLoadError).always(() => showLoadingIndicator(false));
+        }
         function populateFilters() {
             const allTypes = [...new Set(allBeneficiaries.map(b => b.userType))];
             const allFields = [...new Set(allBeneficiaries.flatMap(b => b.helpFields.map(f => f.trim())))].sort();
             $('#roleFilter').html('<option value="">All Types</option>' + allTypes.map(r => `<option value="${r}">${r}</option>`).join(''));
             $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join(''));
         }
-
-        function bindEvents() {
-                    // --- Donation and Summary Bindings (No Change) ---
-                    $(document).on("input", "#TotalDonation", updateRemaining);
-                    $(document).on("click", ".donate-btn", handleDonateClick);
-                    $(document).on("click", ".remove-donation-btn", handleRemoveDonation);
-                    $('#submitAllBtn').on("click", submitAllDonations);
-
-                    // --- Map & Table Control Bindings (Updated Logic) ---
-
-                    // 💡 FIX: Separated the 'Show All' handler to reset filters
-
-                    // When a dropdown/checkbox filter changes, just apply the filters
-                    $('#roleFilter, #fieldFilter, #hideZeroNeededFilter').on('change', applyFilters);
-
-                    // When the main map layer filter changes, update layer visibility then apply filters
-                    $('input[name="layerFilter"]').on('change', () => {
-                        updateLayerVisibility();
-                        applyFilters();
-                    });
-
-                    // When 'Show Selected' is clicked, just set the mode and apply filters
-                    $('#showSelectedBtn').on('click', function() {
-                        $('#beneficiariesTable').data('show-mode', 'showSelectedBtn');
-                        applyFilters();
-                    });
-
-                    // ⭐ When 'Show All' is clicked, RESET everything first, then apply filters
-                    $('#showAllBtn').on('click', function() {
-                        // Step 1: Reset the filter inputs to their default values
-                        $('#roleFilter').val('');
-                        $('#fieldFilter').val('');
-                        $('#hideZeroNeededFilter').prop('checked', false);
-
-                        // Step 2: Set the table mode to 'show all' (not 'show selected')
-                        $('#beneficiariesTable').data('show-mode', 'showAllBtn');
-
-                        // Step 3: Now, apply the cleared filters to show all relevant rows
-                        applyFilters();
-                    });
-
-                    // --- Other Control Bindings (No Change) ---
-                    $('#toggleSketchBtn').on('click', () => toggleSketchMode(!isSketchActive));
-                    $('#clearSelectionBtn').on('click', clearAllSelections);
-                    $('#zoomToAllBtn').on('click', zoomToAll);
-                    $('#selectAllCheckbox').on('change', handleSelectAll);
-                    $(document).on('change', '.row-checkbox', handleRowCheckboxChange);
-                }
-        function applyFilters() {
-            const roleFilter = $('#roleFilter').val();
-            const fieldFilter = $('#fieldFilter').val();
-            const hideZero = $('#hideZeroNeededFilter').prop('checked');
-            const showMode = $('#beneficiariesTable').data('show-mode') || 'showAllBtn';
-            const layerType = $('input[name="layerFilter"]:checked').val();
-
-            allBeneficiaries.forEach(b => {
-                let isVisible = true;
-                if (layerType !== 'both' && b.layerType !== layerType) isVisible = false;
-                if (showMode === 'showSelectedBtn' && !selectedFeatures.has(b.id)) isVisible = false;
-                if (hideZero && b.neededAmount <= 0) isVisible = false;
-                if (roleFilter && b.userType !== roleFilter) isVisible = false;
-                if (fieldFilter && !b.helpFields.some(f => f.trim() === fieldFilter)) isVisible = false;
-
-                $(`.beneficiary-row[data-id="${b.id}"]`).toggle(isVisible);
-            });
-            updateSelectAllCheckboxState();
+        function updatePaginationControls(totalRows) {
+            const totalPages = Math.ceil(totalRows / rowsPerPage);
+            const paginationFooter = $('#paginationInfo').closest('.card-footer');
+            if (totalPages <= 1) { paginationFooter.hide(); return; }
+            paginationFooter.show();
+            $('#prevPageBtn').prop('disabled', currentPage === 1);
+            $('#nextPageBtn').prop('disabled', currentPage === totalPages);
+            $('#paginationInfo').text(`Page ${currentPage} of ${totalPages} (${totalRows} items)`);
         }
-
         function toggleFeatureSelection(id) {
             const beneficiary = allBeneficiaries.find(b => b.id === id);
             if (!beneficiary) return;
-
             if (selectedFeatures.has(id)) {
                 selectedFeatures.delete(id);
             } else {
@@ -318,7 +324,6 @@
             updateTableSelectionVisuals();
             highlightSelection();
         }
-
         function clearAllSelections() {
             selectedFeatures.clear();
             if (sketchViewModel) sketchViewModel.layer.removeAll();
@@ -326,27 +331,20 @@
             updateTableSelectionVisuals();
             highlightSelection();
         }
-
         function highlightSelection() {
             highlightHandles.forEach(h => h.remove());
             highlightHandles = [];
             if (selectedFeatures.size === 0) return;
-
             const idsByType = { needy: [], charity: [] };
             selectedFeatures.forEach(b => idsByType[b.layerType].push(b.objectId));
-
             if (idsByType.needy.length > 0 && neediesLayer.visible) {
-                mapView.whenLayerView(neediesLayer).then(lv => { if(lv) highlightHandles.push(lv.highlight(idsByType.needy)); });
+                mapView.whenLayerView(neediesLayer).then(lv => { if (lv) highlightHandles.push(lv.highlight(idsByType.needy)); });
             }
             if (idsByType.charity.length > 0 && charitiesLayer.visible) {
-                mapView.whenLayerView(charitiesLayer).then(lv => { if(lv) highlightHandles.push(lv.highlight(idsByType.charity)); });
+                mapView.whenLayerView(charitiesLayer).then(lv => { if (lv) highlightHandles.push(lv.highlight(idsByType.charity)); });
             }
         }
-
-        function handleRowCheckboxChange() {
-            toggleFeatureSelection($(this).data('id'));
-        }
-
+        function handleRowCheckboxChange() { toggleFeatureSelection($(this).data('id')); }
         function handleMapClick(event) {
             if (isSketchActive) return;
             mapView.hitTest(event).then(response => {
@@ -357,9 +355,8 @@
                 }
             });
         }
-
         function handleSketchCreate(event) {
-             if (event.state === "complete") {
+            if (event.state === "complete") {
                 const geometry = event.graphic.geometry;
                 sketchViewModel.layer.removeAll();
                 toggleSketchMode(false);
@@ -379,10 +376,9 @@
                 }).catch(err => console.error("Sketch query error:", err));
             }
         }
-
         function handleSelectAll() {
-             const isChecked = $(this).prop('checked');
-             $('.row-checkbox:visible').each(function () {
+            const isChecked = $(this).prop('checked');
+            $('#beneficiariesTable tbody tr:visible .row-checkbox').each(function () {
                 const id = $(this).data('id');
                 const beneficiary = allBeneficiaries.find(b => b.id === id);
                 if (beneficiary) {
@@ -392,18 +388,14 @@
                         if (selectedFeatures.has(id)) selectedFeatures.delete(id);
                     }
                 }
-             });
-             updateSelectionCount();
-             updateTableSelectionVisuals();
-             highlightSelection();
+            });
+            updateSelectionCount();
+            updateTableSelectionVisuals();
+            highlightSelection();
         }
-
         function submitAllDonations() {
             if (donations.length === 0) return;
-            const dataToSubmit = donations.map(d => {
-                const parts = d.id.split('_');
-                return { Type: parts[0], BeneficiaryId: parseInt(parts[1]), Amount: d.amount };
-            });
+            const dataToSubmit = donations.map(d => ({ Type: d.id.split('_')[0], BeneficiaryId: parseInt(d.id.split('_')[1]), Amount: d.amount }));
             $('#submitAllBtn').prop('disabled', true).html('<div class="spinner-border spinner-border-sm"></div> Submitting...');
             $.ajax({
                 url: '/Donate/SubmitDonations', type: 'POST',
@@ -424,7 +416,6 @@
                 }
             });
         }
-
         function handleDonateClick() {
             const beneficiary = JSON.parse($(this).attr('data-beneficiary'));
             const input = $(this).closest('tr').find(".donate-amount");
@@ -435,7 +426,7 @@
                 alert(`Invalid amount. Please enter a value between 1 and the remaining balance of ${formatCurrency(total-used)}.`);
                 input.addClass("is-invalid").focus(); return;
             }
-            if (amount > beneficiary.neededAmount) {
+            if (beneficiary.neededAmount > 0 && amount > beneficiary.neededAmount) {
                 alert(`Donation cannot exceed the needed amount of ${formatCurrency(beneficiary.neededAmount)}.`);
                 input.addClass("is-invalid").focus(); return;
             }
@@ -448,7 +439,6 @@
             input.prop("disabled", true);
             updateSummary();
         }
-
         function handleRemoveDonation() {
             const idToRemove = $(this).data('id');
             donations = donations.filter(d => d.id !== idToRemove);
@@ -457,67 +447,59 @@
             row.find('.donate-amount').prop('disabled', false);
             updateSummary();
         }
-
         function updateTableSelectionVisuals() {
-             $('.row-checkbox').each(function () {
+            $('.row-checkbox').each(function () {
                 $(this).prop('checked', selectedFeatures.has($(this).data('id')));
                 $(this).closest('tr').toggleClass('table-info', selectedFeatures.has($(this).data('id')));
             });
             updateSelectAllCheckboxState();
         }
-
         function updateSelectionCount() {
             const count = selectedFeatures.size;
-            $('#selectionCount').text(count);
-            $('#showSelectedBtn').prop('disabled', count === 0);
+            // The text is now part of the pagination controls, let's not update this for now.
+            // $('#selectionCount').text(count);
         }
-
         function updateSelectAllCheckboxState() {
-            const allVisibleChecks = $('.row-checkbox:visible');
+            const allVisibleChecks = $('#beneficiariesTable tbody .row-checkbox');
             const allVisibleChecked = allVisibleChecks.filter(':checked');
             const selectAll = $('#selectAllCheckbox');
             selectAll.prop('checked', allVisibleChecks.length > 0 && allVisibleChecks.length === allVisibleChecked.length);
             selectAll.prop('indeterminate', allVisibleChecked.length > 0 && allVisibleChecked.length < allVisibleChecks.length);
         }
-
         function updateRemaining() {
             const total = parseFloat($("#TotalDonation").val()) || 0;
             const used = donations.reduce((sum, d) => sum + d.amount, 0);
             $("#RemainingBalance").val((total - used).toFixed(2));
             $("#submitAllBtn").prop("disabled", donations.length === 0 || (total - used) < 0 || total === 0);
         }
-
         function updateSummary() {
             const tbody = $("#donationSummary tbody");
             tbody.empty();
-            if(donations.length === 0){
-                 tbody.html('<tr><td colspan="4" class="text-center text-muted">No donations added yet.</td></tr>');
+            if (donations.length === 0) {
+                tbody.html('<tr><td colspan="4" class="text-center text-muted">No donations added yet.</td></tr>');
             } else {
                 donations.forEach(d => tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${formatCurrency(d.amount)}</td><td><button class="btn btn-sm btn-outline-danger remove-donation-btn" data-id="${d.id}"><i class="fas fa-trash"></i></button></td></tr>`));
             }
             $('#totalDonationsAmount').text(formatCurrency(donations.reduce((sum, d) => sum + d.amount, 0)));
             updateRemaining();
         }
-
         function createPopupTemplate(type) {
             const content = type === 'needy'
                 ? `<p><strong>Need:</strong> {type_of_need}</p><p><strong>Amount:</strong> ${formatCurrency('{how_much_do_you_need}')}</p>`
                 : `<p><strong>Sector:</strong> {charity_sector}</p><p><strong>Amount:</strong> ${formatCurrency('{how_much_do_you_need}')}</p>`;
             return { title: type === 'needy' ? "{full_name}" : "{charity_name}", content: content };
         }
-
         function processFeature(feature, layerType) {
             const attrs = feature.attributes;
             const isCharity = layerType === 'charity';
             return {
                 id: `${layerType}_${attrs.objectid}`, name: isCharity ? attrs.charity_name : attrs.full_name,
                 neededAmount: attrs.how_much_do_you_need || 0, userType: isCharity ? 'Charity' : 'Needy',
-                helpFields: isCharity ? (attrs.charity_sector || 'General').split(',') : [attrs.type_of_need || 'General'],
+                helpFields: isCharity ? (attrs.charity_sector || 'General').split(/[,;]/).map(s => s.trim()) : [attrs.type_of_need || 'General'],
                 email: isCharity ? attrs.enter_your_e_mail : attrs.email,
                 layerType: layerType, objectId: attrs.objectid
             };
         }
-
         function toggleSketchMode(active) {
             isSketchActive = active;
             const btn = $('#toggleSketchBtn');
@@ -529,40 +511,36 @@
                 btn.removeClass('btn-warning').addClass('btn-outline-secondary').html('<i class="fas fa-draw-polygon"></i> Multi-Select');
             }
         }
-
         function getVisibleLayers() {
             const filterValue = $('input[name="layerFilter"]:checked').val();
             if (filterValue === 'needy') return [neediesLayer];
             if (filterValue === 'charity') return [charitiesLayer];
             return [neediesLayer, charitiesLayer];
         }
-
         function updateLayerVisibility() {
-            if(neediesLayer) neediesLayer.visible = ($('input[name="layerFilter"]:checked').val() === 'needy' || $('input[name="layerFilter"]:checked').val() === 'both');
-            if(charitiesLayer) charitiesLayer.visible = ($('input[name="layerFilter"]:checked').val() === 'charity' || $('input[name="layerFilter"]:checked').val() === 'both');
+            if (neediesLayer) neediesLayer.visible = ($('input[name="layerFilter"]:checked').val() === 'needy' || $('input[name="layerFilter"]:checked').val() === 'both');
+            if (charitiesLayer) charitiesLayer.visible = ($('input[name="layerFilter"]:checked').val() === 'charity' || $('input[name="layerFilter"]:checked').val() === 'both');
         }
-
         function zoomToAll() {
             const layers = getVisibleLayers();
-            if(layers.length === 0 || !layers[0]) return;
-            Promise.all(layers.map(l => l.queryExtent())).then(results => {
+            if (layers.length === 0 || !layers.some(l => l)) return;
+            Promise.all(layers.filter(l => l).map(l => l.queryExtent())).then(results => {
                 const combined = results.map(r => r.extent).reduce((acc, current) => current ? (acc ? acc.union(current) : current) : acc, null);
                 if (combined) mapView.goTo(combined.expand(1.5));
             });
         }
-
         function showLoadingIndicator(show) {
             const placeholder = '<tr><td colspan="6" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>';
             if (show) $('#beneficiariesTable tbody').html(placeholder);
         }
-
         function handleDataLoadError(error) {
             console.error('Error loading data:', error);
-            $('#beneficiariesTable tbody').html('<tr><td colspan="6" class="text-center text-danger p-5">Failed to load data.</td></tr>');
+            const errorMsg = 'Failed to load data. Please check ArcGIS service status and CORS settings.';
+            $('#beneficiariesTable tbody').html(`<tr><td colspan="6" class="text-center text-danger p-5">${errorMsg}</td></tr>`);
         }
-
         function formatCurrency(value) {
             return (value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
         }
+
     </script>
 }
