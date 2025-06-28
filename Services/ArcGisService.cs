@@ -1,4 +1,4 @@
-using System.Net.Http;
+ï»¿using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -18,22 +18,27 @@ namespace Accounts.Services
         public string charity_name { get; set; }
         public string charity_sector { get; set; }
         public double? how_much_do_you_need { get; set; }
+        public string enter_your_e_mail { get; set; } // Ø¥Ø¶Ø§ÙØ© Ø­Ù‚Ù„ Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„
         public double? x { get; set; } // Longitude
         public double? y { get; set; } // Latitude
     }
+
     public class NeedyFeature
     {
         public int? objectid { get; set; }
         public string full_name { get; set; }
         public string type_of_need { get; set; }
         public double? how_much_do_you_need { get; set; }
+        public string email { get; set; } // Ø¥Ø¶Ø§ÙØ© Ø­Ù‚Ù„ Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„
         public double? x { get; set; } // Longitude
         public double? y { get; set; } // Latitude
     }
+
     public class DonationFeature
     {
         public string donor_email { get; set; }
         public string recipient_email { get; set; }
+        public string recipient_name { get; set; } // Ø¥Ø¶Ø§ÙØ© Ø§Ø³Ù… Ø§Ù„Ù…Ø³ØªÙÙŠØ¯
         public string donation_field { get; set; }
         public double donation_amount { get; set; }
         public DateTime donation_date { get; set; }
@@ -47,6 +52,7 @@ namespace Accounts.Services
     {
         public string donor_email { get; set; }
         public string recipient_email { get; set; }
+        public string recipient_name { get; set; }
         public string donation_field { get; set; }
         public double? donation_amount { get; set; }
         public long? donation_date { get; set; } // Epoch milliseconds
@@ -69,10 +75,11 @@ namespace Accounts.Services
 
         public async Task<List<CharityFeature>> GetCharitiesAsync()
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/query?where=1=1&outFields=*&returnGeometry=true&f=json";
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/query?where=1=1&outFields=*&returnGeometry=true&f=json";
             var response = await _client.GetStringAsync(url);
             var data = JsonSerializer.Deserialize<ArcGisResponse<CharityFeature>>(response);
-            return data?.features?.Select(f => {
+            return data?.features?.Select(f =>
+            {
                 f.attributes.x = f.geometry?.x;
                 f.attributes.y = f.geometry?.y;
                 return f.attributes;
@@ -81,10 +88,11 @@ namespace Accounts.Services
 
         public async Task<List<NeedyFeature>> GetNeediesAsync()
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a_results/FeatureServer/0/query?where=1=1&outFields=*&returnGeometry=true&f=json";
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0/query?where=1=1&outFields=*&returnGeometry=true&f=json";
             var response = await _client.GetStringAsync(url);
             var data = JsonSerializer.Deserialize<ArcGisResponse<NeedyFeature>>(response);
-            return data?.features?.Select(f => {
+            return data?.features?.Select(f =>
+            {
                 f.attributes.x = f.geometry?.x;
                 f.attributes.y = f.geometry?.y;
                 return f.attributes;
@@ -102,6 +110,7 @@ namespace Accounts.Services
                     {
                         ["donor_email"] = donation.donor_email ?? string.Empty,
                         ["recipient_email"] = donation.recipient_email ?? string.Empty,
+                        ["recipient_name"] = donation.recipient_name ?? string.Empty,
                         ["donation_field"] = donation.donation_field ?? string.Empty,
                         ["donation_amount"] = donation.donation_amount,
                         ["donation_date"] = ((DateTimeOffset)donation.donation_date).ToUnixTimeMilliseconds(),
@@ -131,75 +140,95 @@ namespace Accounts.Services
             return responseContent.Contains("success");
         }
 
-        // ÊÍÏíË ÇáãÈáÛ ÇáãØáæÈ ááÌãÚíÉ ÇáÎíÑíÉ
+        // ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø·Ù„ÙˆØ¨ Ù„Ù„Ø¬Ù…Ø¹ÙŠØ© Ø§Ù„Ø®ÙŠØ±ÙŠØ©
         public async Task<bool> UpdateCharityNeededAmountAsync(int objectId, double newNeededAmount)
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/updateFeatures";
-
-            var featuresArr = new[]
+            try
             {
-                new
+                var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/updateFeatures";
+
+                var featuresArr = new[]
                 {
-                    attributes = new Dictionary<string, object>
+                    new
                     {
-                        ["objectid"] = objectId,
-                        ["how_much_do_you_need"] = newNeededAmount
+                        attributes = new Dictionary<string, object>
+                        {
+                            ["objectid"] = objectId,
+                            ["how_much_do_you_need"] = newNeededAmount
+                        }
                     }
-                }
-            };
+                };
 
-            var featuresJson = JsonSerializer.Serialize(featuresArr);
-            var form = new List<KeyValuePair<string, string>>
+                var featuresJson = JsonSerializer.Serialize(featuresArr);
+                var form = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("features", featuresJson),
+                    new KeyValuePair<string, string>("f", "json")
+                };
+
+                var content = new FormUrlEncodedContent(form);
+                var response = await _client.PostAsync(url, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"UpdateCharityNeededAmount response for ObjectId {objectId}: {responseContent}");
+                _logger?.LogInformation($"UpdateCharityNeededAmount response for ObjectId {objectId}: {responseContent}");
+
+                return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+            }
+            catch (Exception ex)
             {
-                new KeyValuePair<string, string>("features", featuresJson),
-                new KeyValuePair<string, string>("f", "json")
-            };
-
-            var content = new FormUrlEncodedContent(form);
-            var response = await _client.PostAsync(url, content);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            Console.WriteLine($"UpdateCharityNeededAmount response: {responseContent}");
-            return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+                _logger?.LogError(ex, $"Error updating charity needed amount for ObjectId {objectId}");
+                return false;
+            }
         }
 
-        // ÊÍÏíË ÇáãÈáÛ ÇáãØáæÈ ááãÍÊÇÌ
+        // ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø·Ù„ÙˆØ¨ Ù„Ù„Ù…Ø­ØªØ§Ø¬
         public async Task<bool> UpdateNeedyNeededAmountAsync(int objectId, double newNeededAmount)
         {
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a_results/FeatureServer/0/updateFeatures";
-
-            var featuresArr = new[]
+            try
             {
-                new
+                var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0/updateFeatures";
+
+                var featuresArr = new[]
                 {
-                    attributes = new Dictionary<string, object>
+                    new
                     {
-                        ["objectid"] = objectId,
-                        ["how_much_do_you_need"] = newNeededAmount
+                        attributes = new Dictionary<string, object>
+                        {
+                            ["objectid"] = objectId,
+                            ["how_much_do_you_need"] = newNeededAmount
+                        }
                     }
-                }
-            };
+                };
 
-            var featuresJson = JsonSerializer.Serialize(featuresArr);
-            var form = new List<KeyValuePair<string, string>>
+                var featuresJson = JsonSerializer.Serialize(featuresArr);
+                var form = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("features", featuresJson),
+                    new KeyValuePair<string, string>("f", "json")
+                };
+
+                var content = new FormUrlEncodedContent(form);
+                var response = await _client.PostAsync(url, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"UpdateNeedyNeededAmount response for ObjectId {objectId}: {responseContent}");
+                _logger?.LogInformation($"UpdateNeedyNeededAmount response for ObjectId {objectId}: {responseContent}");
+
+                return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+            }
+            catch (Exception ex)
             {
-                new KeyValuePair<string, string>("features", featuresJson),
-                new KeyValuePair<string, string>("f", "json")
-            };
-
-            var content = new FormUrlEncodedContent(form);
-            var response = await _client.PostAsync(url, content);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            Console.WriteLine($"UpdateNeedyNeededAmount response: {responseContent}");
-            return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
+                _logger?.LogError(ex, $"Error updating needy needed amount for ObjectId {objectId}");
+                return false;
+            }
         }
 
         public async Task<bool> UpdateDonorNeededAmountAsync(string email, double newNeededAmount)
         {
-            // ÊÍÏíË needed amount İí áÇíÑ ÇáãÊÈÑÚíä
+            // ØªØ­Ø¯ÙŠØ« needed amount ÙÙŠ Ù„Ø§ÙŠØ± Ø§Ù„Ù…ØªØ¨Ø±Ø¹ÙŠÙ†
             var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c_results/FeatureServer/0/updateFeatures";
-            // ÌáÈ objectid ááãÊÈÑÚ
+            // Ø¬Ù„Ø¨ objectid Ù„Ù„Ù…ØªØ¨Ø±Ø¹
             var donor = await GetDonorByEmailAsync(email);
             if (donor == null || donor.objectid == null)
                 return false;
@@ -229,7 +258,7 @@ namespace Accounts.Services
             return response.IsSuccessStatusCode && (responseContent.Contains("success") || responseContent.Contains("updateResults"));
         }
 
-        // ÊÍÏíË needed amount ááãÓÊİíÏ (charity Ãæ needy) - deprecated, use specific methods above
+        // ØªØ­Ø¯ÙŠØ« needed amount Ù„Ù„Ù…Ø³ØªÙÙŠØ¯ (charity Ø£Ùˆ needy) - deprecated, use specific methods above
         public async Task<bool> UpdateBeneficiaryNeededAmountAsync(string beneficiaryType, int objectId, double newNeededAmount)
         {
             if (beneficiaryType == "Charity")
@@ -256,18 +285,56 @@ namespace Accounts.Services
             var url = $"https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c_results/FeatureServer/0/query?where=enter_your_e_mail='{email}'&outFields=*&returnGeometry=true&f=json";
             var response = await _client.GetStringAsync(url);
             var data = JsonSerializer.Deserialize<ArcGisResponse<CharityFeature>>(response);
-            return data?.features?.Select(f => {
+            return data?.features?.Select(f =>
+            {
                 f.attributes.x = f.geometry?.x;
                 f.attributes.y = f.geometry?.y;
                 return f.attributes;
             }).FirstOrDefault();
         }
 
+        // Ø§Ù„Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„Ø¬Ù…Ø¹ÙŠØ© Ø§Ù„Ø®ÙŠØ±ÙŠØ© Ø¨Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„
+        public async Task<CharityFeature> GetCharityByEmailAsync(string email)
+        {
+            var url = $"https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/query?where=enter_your_e_mail='{email}'&outFields=*&returnGeometry=true&f=json";
+            var response = await _client.GetStringAsync(url);
+            var data = JsonSerializer.Deserialize<ArcGisResponse<CharityFeature>>(response);
+            return data?.features?.Select(f =>
+            {
+                f.attributes.x = f.geometry?.x;
+                f.attributes.y = f.geometry?.y;
+                return f.attributes;
+            }).FirstOrDefault();
+        }
+
+        // Ø§Ù„Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„Ù…Ø­ØªØ§Ø¬ Ø¨Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„
+        public async Task<NeedyFeature> GetNeedyByEmailAsync(string email)
+
+        {
+
+            var url = $"https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0/query?where=email='{email.Replace("'", "''")}'&outFields=*&returnGeometry=true&f=json";
+
+            var response = await _client.GetStringAsync(url);
+
+            var data = JsonSerializer.Deserialize<ArcGisResponse<NeedyFeature>>(response);
+
+            return data?.features?.Select(f => {
+
+                f.attributes.x = f.geometry?.x;
+
+                f.attributes.y = f.geometry?.y;
+
+                return f.attributes;
+
+            }).FirstOrDefault();
+
+        }
+
         // Send charity registration data to ArcGIS Feature Layer
         public async Task<bool> SendCharityDataAsync(string charityName, string charitySector, string numberOfCasesSponsoredMonth, string monthlyDonationAmount, double howMuchDoYouNeed, string email, double x, double y)
         {
-            // Êã ÊÕÍíÍ ÇáÑÇÈØ áíÔãá _results
-            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/addFeatures";
+            // ØªÙ… ØªØµØ­ÙŠØ­ Ø§Ù„Ø±Ø§Ø¨Ø· Ù„ÙŠØ´Ù…Ù„ _results
+            var url = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0/addFeatures";
             var registrationDate = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var payload = new
             {
@@ -303,7 +370,7 @@ namespace Accounts.Services
         {
             try
             {
-                // ÊÍæíá CharitySector Åáì äÕ ãİÕæá ÈİæÇÕá ÅĞÇ ßÇäÊ ŞÇÆãÉ
+                // ØªØ­ÙˆÙŠÙ„ CharitySector Ø¥Ù„Ù‰ Ù†Øµ Ù…ÙØµÙˆÙ„ Ø¨ÙÙˆØ§ØµÙ„ Ø¥Ø°Ø§ ÙƒØ§Ù†Øª Ù‚Ø§Ø¦Ù…Ø©
                 string charitySectorStr = model.CharitySector is List<string> list ? string.Join(",", list) : (model.CharitySector?.ToString() ?? string.Empty);
                 return await SendCharityDataAsync(
                     model.CharityName ?? string.Empty,
@@ -322,5 +389,98 @@ namespace Accounts.Services
                 throw;
             }
         }
+        public async Task<bool> UpdateNeedyByEmailAsync(string email, double newNeededAmount)
+        {
+            try
+            {
+                var baseUrl = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0";
+                var whereClause = $"email = '{email.Replace("'", "''")}'";
+                var queryUrl = $"{baseUrl}/query?f=json&where={Uri.EscapeDataString(whereClause)}&outFields=objectid";
+
+                var queryResponse = await _client.GetStringAsync(queryUrl);
+                var queryResult = JsonSerializer.Deserialize<ArcGisResponse<NeedyFeature>>(queryResponse);
+                var objectId = queryResult?.features?.FirstOrDefault()?.attributes?.objectid;
+
+                if (objectId == null) return false;
+
+                var updatePayload = new[]
+                {
+            new {
+                attributes = new Dictionary<string, object>
+                {
+                    { "objectid", objectId },
+                    { "how_much_do_you_need", newNeededAmount }
+                }
+            }
+        };
+
+                var featuresJson = JsonSerializer.Serialize(updatePayload);
+                var form = new List<KeyValuePair<string, string>>
+        {
+            new("features", featuresJson),
+            new("f", "json")
+        };
+
+                var content = new FormUrlEncodedContent(form);
+                var updateResponse = await _client.PostAsync($"{baseUrl}/updateFeatures", content);
+                var responseContent = await updateResponse.Content.ReadAsStringAsync();
+
+                _logger?.LogInformation($"UpdateNeedyByEmailAsync for {email}: {responseContent}");
+                return updateResponse.IsSuccessStatusCode && responseContent.Contains("success");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Error updating needy by email: {email}");
+                return false;
+            }
+        }
+        public async Task<bool> UpdateCharityByEmailAsync(string email, double newNeededAmount)
+        {
+            try
+            {
+                var baseUrl = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0";
+                var whereClause = $"enter_your_e_mail='{email.Replace("'", "''")}'";
+                var queryUrl = $"{baseUrl}/query?f=json&where={Uri.EscapeDataString(whereClause)}&outFields=objectid";
+
+                var queryResponse = await _client.GetStringAsync(queryUrl);
+                var queryResult = JsonSerializer.Deserialize<ArcGisResponse<CharityFeature>>(queryResponse);
+                var objectId = queryResult?.features?.FirstOrDefault()?.attributes?.objectid;
+
+                if (objectId == null) return false;
+
+                var updatePayload = new[]
+                {
+            new
+            {
+                attributes = new Dictionary<string, object>
+                {
+                    ["objectid"] = objectId,
+                    ["how_much_do_you_need"] = newNeededAmount
+                }
+            }
+        };
+
+                var featuresJson = JsonSerializer.Serialize(updatePayload);
+                var form = new List<KeyValuePair<string, string>>
+        {
+            new("features", featuresJson),
+            new("f", "json")
+        };
+
+                var content = new FormUrlEncodedContent(form);
+                var updateResponse = await _client.PostAsync($"{baseUrl}/updateFeatures", content);
+                var responseContent = await updateResponse.Content.ReadAsStringAsync();
+
+                _logger?.LogInformation($"âœ… UpdateCharityByEmailAsync for {email}: {responseContent}");
+                return updateResponse.IsSuccessStatusCode && responseContent.Contains("success");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"âŒ Error updating charity by email: {email}");
+                return false;
+            }
+        }
+
+
     }
 }

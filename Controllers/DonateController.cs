@@ -73,26 +73,25 @@ public class DonateController : Controller
 
         var donations = await _arcGisService.GetDonationsAsync(user.Email);
 
-        // Ã·» ﬁ«∆„… «·„” ›ÌœÌ‰ „⁄  ›«’Ì·Â„
         var charities = await _arcGisService.GetCharitiesAsync();
         var needies = await _arcGisService.GetNeediesAsync();
         var accounts = new List<dynamic>();
 
         accounts.AddRange(charities.Select(c => new {
-            email = c.charity_name,
+            email = c.enter_your_e_mail ?? c.charity_name,
+            name = c.charity_name,
             userType = "Charity",
             HelpFields = c.charity_sector
         }));
 
         accounts.AddRange(needies.Select(n => new {
-            email = n.full_name,
+            email = n.email ?? n.full_name,
+            name = n.full_name,
             userType = "Beneficiary",
             HelpFields = n.type_of_need
         }));
 
         ViewBag.Accounts = accounts;
-
-        // ≈÷«›… ﬁÊ«∆„ „‰›’·… ··›·« —
         ViewBag.UserTypes = accounts.Select(a => a.userType).Distinct().ToList();
         ViewBag.Fields = accounts.Select(a => a.HelpFields).Distinct().ToList();
 
@@ -107,7 +106,6 @@ public class DonateController : Controller
         if (user == null)
             return Unauthorized();
 
-        // Ã·» »Ì«‰«  «·„ »—⁄ „‰ ÿ»ﬁ… «·„ »—⁄Ì‰
         var donor = await _arcGisService.GetDonorByEmailAsync(user.Email);
         if (donor == null)
             return Json(new { success = false, message = "Donor email not found in donors layer." });
@@ -122,61 +120,55 @@ public class DonateController : Controller
             if (d.Amount < 1 || d.Amount > 1000000)
                 continue;
 
-            // «·»ÕÀ ⁄‰ «·„” ›Ìœ ›Ì ﬂ·« «·ÿ»ﬁ Ì‰
             var charity = charities.FirstOrDefault(c => (c.objectid ?? 0) == d.BeneficiaryId);
-            var needy = needies.FirstOrDefault(n => (n.objectid ?? 0) == d.BeneficiaryId);
+                var needy = needies.FirstOrDefault(n => (n.objectid ?? 0) == d.BeneficiaryId);
 
-            string recipientName, recipientField, userType;
+            string recipientName, recipientEmail, recipientField, userType;
             double recipientX = 0, recipientY = 0;
             double currentNeeded = 0;
+            int recipientObjectId = 0;
 
             if (charity != null)
             {
                 recipientName = charity.charity_name;
+                recipientEmail = charity.enter_your_e_mail ?? charity.charity_name;
                 recipientField = charity.charity_sector;
                 userType = "Charity";
                 recipientX = charity.x ?? 0;
                 recipientY = charity.y ?? 0;
                 currentNeeded = charity.how_much_do_you_need ?? 0;
+                recipientObjectId = charity.objectid ?? 0;
             }
             else if (needy != null)
             {
                 recipientName = needy.full_name;
+                recipientEmail = needy.email ?? needy.full_name;
                 recipientField = needy.type_of_need;
                 userType = "Beneficiary";
                 recipientX = needy.x ?? 0;
                 recipientY = needy.y ?? 0;
                 currentNeeded = needy.how_much_do_you_need ?? 0;
+                recipientObjectId = needy.objectid ?? 0;
             }
             else
             {
-                continue; //  ŒÿÌ ≈–« ·„ Ì „ «·⁄ÀÊ— ⁄·Ï «·„” ›Ìœ
+                continue;
             }
 
-            // «· √ﬂœ „‰ √‰ «·„»·€ «·„ÿ·Ê» ·· »—⁄ ·« Ì Ã«Ê“ «·„»·€ «·„ÿ·Ê»
-            double donationAmount = (double)d.Amount;
-            if (donationAmount > currentNeeded)
-            {
-                donationAmount = currentNeeded; //  ÕœÌœ «·„»·€ »«·Õœ «·√ﬁ’Ï «·„ÿ·Ê»
-            }
-
+            double donationAmount = Math.Min((double)d.Amount, currentNeeded);
             if (donationAmount <= 0)
-                continue; //  ŒÿÌ ≈–« ·„ Ì⁄œ Â‰«ﬂ Õ«Ã… ·· »—⁄
+                continue;
 
-            // ≈Õœ«ÀÌ«  «·„ »—⁄ „‰ ÿ»ﬁ… «·„ »—⁄Ì‰
-            double donorX = donor.x ?? 0;
-            double donorY = donor.y ?? 0;
-
-            // ≈‰‘«¡ ”Ã· «· »—⁄
             var donation = new DonationFeature
             {
                 donor_email = user.Email,
-                recipient_email = recipientName,
+                recipient_email = recipientEmail,
+                recipient_name = recipientName,
                 donation_field = recipientField,
                 donation_amount = donationAmount,
                 donation_date = DateTime.UtcNow,
-                donor_x = donorX,
-                donor_y = donorY,
+                donor_x = donor.x ?? 0,
+                donor_y = donor.y ?? 0,
                 recipient_x = recipientX,
                 recipient_y = recipientY
             };
@@ -192,18 +184,15 @@ public class DonateController : Controller
                     requestedAmount = (double)d.Amount
                 });
 
-                //  ÕœÌÀ «·„»·€ «·„ÿ·Ê» ··„” ›Ìœ ›Ì «·ÿ»ﬁ… «·’ÕÌÕ…
                 double newNeeded = Math.Max(0, currentNeeded - donationAmount);
 
                 if (charity != null)
                 {
-                    //  ÕœÌÀ «·Ã„⁄Ì… «·ŒÌ—Ì…
-                    await _arcGisService.UpdateCharityNeededAmountAsync(charity.objectid ?? 0, newNeeded);
+                    await _arcGisService.UpdateCharityByEmailAsync(charity.enter_your_e_mail, newNeeded);
                 }
                 else if (needy != null)
                 {
-                    //  ÕœÌÀ «·„Õ «Ã
-                    await _arcGisService.UpdateNeedyNeededAmountAsync(needy.objectid ?? 0, newNeeded);
+                    await _arcGisService.UpdateNeedyByEmailAsync(needy.email, newNeeded);
                 }
             }
         }
@@ -213,7 +202,7 @@ public class DonateController : Controller
             success = true,
             updated = results,
             totalDonated = totalDonated,
-            message = $"A donation of {totalDonated} has been made successfully!"
+            message = $"A donation of {totalDonated:F2} has been made successfully!"
         });
     }
 
