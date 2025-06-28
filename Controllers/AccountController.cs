@@ -44,14 +44,8 @@ public class AccountController : Controller
     public async Task<IActionResult> Register(RegisterModel model)
     {
         // Role-based validation
-        if (model.Role == "Beneficiary")
-        {
-            if (!model.NeededAmount.HasValue || model.NeededAmount <= 0)
-                ModelState.AddModelError("NeededAmount", "Needed amount is required for beneficiaries.");
-            if (model.HelpFields == null || !model.HelpFields.Any())
-                ModelState.AddModelError("HelpFields", "Please select at least one help field.");
-        }
-        else if (model.Role == "Charity")
+
+         if (model.Role == "Charity")
         {
             if (string.IsNullOrWhiteSpace(model.CharityName))
                 ModelState.AddModelError("CharityName", "Charity name is required.");
@@ -99,20 +93,8 @@ public class AccountController : Controller
             }
 
             // Handle role-specific data
-            if (model.Role == "Beneficiary" && model.NeededAmount.HasValue && model.HelpFields != null)
-            {
-                var beneficiary = new Beneficiary
-                {
-                    Name = model.Email,
-                    NeededAmount = model.NeededAmount.Value,
-                    DonatedAmount = 0,
-                    HelpFields = string.Join(",", model.HelpFields),
-                    UserType = model.Role
-                };
-                _context.Beneficiaries.Add(beneficiary);
-                await _context.SaveChangesAsync();
-            }
-            else if (model.Role == "Charity")
+
+             if (model.Role == "Charity")
             {
                 // Send charity data directly to ArcGIS Feature Layer using HttpClient
                 var feature = new Dictionary<string, object>
@@ -249,6 +231,70 @@ public class AccountController : Controller
     {
         await _signInManager.SignOutAsync();
         return RedirectToAction("Index", "Home");
+    }
+
+    // ✅ RegisterDonorAjax - POST
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> RegisterDonorAjax([FromBody] RegisterModel model)
+    {
+        if (string.IsNullOrWhiteSpace(model.FullName))
+            return Json(new { success = false, message = "Full name is required." });
+        if (string.IsNullOrWhiteSpace(model.TypeOfDonation))
+            return Json(new { success = false, message = "Type of donation is required." });
+        if (!model.DonationAmountInEgp.HasValue || model.DonationAmountInEgp <= 0)
+            return Json(new { success = false, message = "Donation amount is required." });
+        if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
+            return Json(new { success = false, message = "Email and password are required." });
+
+        // Create Identity user
+        var user = new IdentityUser
+        {
+            UserName = model.Email,
+            Email = model.Email
+        };
+        var result = await _userManager.CreateAsync(user, model.Password);
+        if (!result.Succeeded)
+        {
+            var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+            return Json(new { success = false, message = msg });
+        }
+
+        if (!await _roleManager.RoleExistsAsync("Donor"))
+            await _roleManager.CreateAsync(new IdentityRole("Donor"));
+        await _userManager.AddToRoleAsync(user, "Donor");
+
+        // Send donor data to ArcGIS (with GPS)
+        var donorPayload = new {
+            features = new[] {
+                new {
+                    attributes = new Dictionary<string, object>
+                    {
+                        ["full_name"] = model.FullName ?? string.Empty,
+                        ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
+                        ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
+                        ["preferred_aid_category"] = model.PreferredAidCategory ?? string.Empty,
+                        ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
+                        ["enter_your_e_mail"] = model.Email
+                    },
+                    geometry = new {
+                        x = model.Longitude ?? 0,
+                        y = model.Latitude ?? 0,
+                        spatialReference = new { wkid = 4326 }
+                    }
+                }
+            },
+            f = "json"
+        };
+        var donorJson = System.Text.Json.JsonSerializer.Serialize(donorPayload);
+        using var client = new System.Net.Http.HttpClient();
+        var resp = await client.PostAsync(
+            "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c/FeatureServer/0/addFeatures",
+            new System.Net.Http.StringContent(donorJson, System.Text.Encoding.UTF8, "application/json"));
+        if (!resp.IsSuccessStatusCode)
+            return Json(new { success = false, message = "Failed to submit to ArcGIS Feature Layer." });
+
+        return Json(new { success = true });
     }
 
     // Utility methods

@@ -33,11 +33,11 @@ namespace Accounts.ViewModels
         [Required(ErrorMessage = "Please select a role.")]
         public string Role { get; set; } = string.Empty;
 
-        // Beneficiary-specific fields
-        [Display(Name = "Needed Amount")]
-        public decimal? NeededAmount { get; set; }
+        //// Beneficiary-specific fields
+        //[Display(Name = "Needed Amount")]
+        //public decimal? NeededAmount { get; set; }
 
-        [Display(Name = "Help Fields")]
+        //[Display(Name = "Help Fields")]
         public List<string>? HelpFields { get; set; }
 
         // Charity-specific fields
@@ -81,23 +81,8 @@ namespace Accounts.ViewModels
         {
             var results = new List<ValidationResult>();
 
-            if (Role == "Beneficiary")
-            {
-                if (!NeededAmount.HasValue || NeededAmount <= 0)
-                {
-                    results.Add(new ValidationResult(
-                        "Needed amount is required for beneficiaries and must be greater than 0.",
-                        new[] { nameof(NeededAmount) }));
-                }
 
-                if (HelpFields == null || HelpFields.Count == 0)
-                {
-                    results.Add(new ValidationResult(
-                        "Please select at least one help field.",
-                        new[] { nameof(HelpFields) }));
-                }
-            }
-            else if (Role == "Charity")
+            if (Role == "Charity")
             {
                 if (string.IsNullOrWhiteSpace(CharityName))
                 {

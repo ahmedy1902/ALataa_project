@@ -63,7 +63,93 @@
                             <span asp-validation-for="Role" class="text-danger"></span>
                         </div>
 
+                        <!-- Donor Fields -->
+                        <div class="role-fields">
+                            <div class="alert alert-info">
+                                <i class="fas fa-heart"></i> Please provide your donation preferences:
+                            </div>
 
+                            <!-- Full Name -->
+                            <div class="form-group mb-3">
+                                <label asp-for="FullName" class="form-label">
+                                    Full Name <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="FullName" class="form-control" placeholder="Enter your full name" />
+                                <span asp-validation-for="FullName" class="text-danger"></span>
+                            </div>
+
+                            <!-- Email -->
+                            <div class="form-group mb-3">
+                                <label asp-for="Email" class="form-label">
+                                    Enter your E-Mail <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="Email" class="form-control" type="email" placeholder="Enter your email address" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+
+                            <!-- Type of Donation -->
+                            <div class="form-group mb-3">
+                                <label class="form-label">Type of donation <span class="text-danger">*</span></label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="TypeOfDonation" value="Monthly" />
+                                    <label class="form-check-label">Monthly</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="TypeOfDonation" value="One Time Only" />
+                                    <label class="form-check-label">One Time Only</label>
+                                </div>
+                                <span asp-validation-for="TypeOfDonation" class="text-danger"></span>
+                            </div>
+
+                            <!-- Donation Amount -->
+                            <div class="form-group mb-3">
+                                <label asp-for="DonationAmountInEgp" class="form-label">
+                                    Average donation Amount (in EGP) <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="DonationAmountInEgp" class="form-control" type="number" step="0.01" placeholder="Enter amount in EGP" />
+                                <span asp-validation-for="DonationAmountInEgp" class="text-danger"></span>
+                            </div>
+
+                            <!-- Preferred Aid Category -->
+                            <div class="form-group mb-3">
+                                <label class="form-label">Preferred Aid Category</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="PreferredAidCategory" value="Food Supplies" />
+                                    <label class="form-check-label">Food Supplies</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="PreferredAidCategory" value="Shelter / Housing" />
+                                    <label class="form-check-label">Shelter / Housing</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="PreferredAidCategory" value="Medical Assistance / Medicine" />
+                                    <label class="form-check-label">Medical Assistance / Medicine</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="PreferredAidCategory" value="Utilities (Water/Electricity)" />
+                                    <label class="form-check-label">Utilities (Water/Electricity)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="PreferredAidCategory" value="Clothing" />
+                                    <label class="form-check-label">Clothing</label>
+                                </div>
+                                <span asp-validation-for="PreferredAidCategory" class="text-danger"></span>
+                            </div>
+
+                            <!-- Who to Donate To -->
+                            <div class="form-group mb-3">
+                                <label class="form-label">Who would you like to donate to? <span class="text-danger">*</span></label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="WhoWouldYouLikeToDonateTo" value="A charity" />
+                                    <label class="form-check-label">A charity</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="WhoWouldYouLikeToDonateTo" value="A direct beneficiary" />
+                                    <label class="form-check-label">A direct beneficiary</label>
+                                </div>
+                                <span asp-validation-for="WhoWouldYouLikeToDonateTo" class="text-danger"></span>
+                            </div>
+                        </div>
 
                         <!-- Charity Fields -->
                         <div id="charityFields" class="role-fields" style="display:none;">
@@ -152,7 +238,6 @@
                             </div>
                         </div>
 
-
                         <!-- Hidden GPS coordinates -->
                         <input type="hidden" asp-for="Latitude" id="latitude" />
                         <input type="hidden" asp-for="Longitude" id="longitude" />
@@ -179,27 +264,26 @@
     <partial name="_ValidationScriptsPartial" />
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
-        $(document).ready(function() {
-            // Get GPS location on page load
-            getLocation();
+        $(document).ready(function () {
+            getLocation();              // 📍 جلب الموقع عند تحميل الصفحة
+            toggleRoleFields();        // 💼 تفعيل الحقول بناءً على الدور المُختار
 
-            // Handle role change
-            $('#roleSelect').on('change', function() {
+            // ⏳ عند تغيير الدور
+            $('#roleSelect').on('change', function () {
                 toggleRoleFields();
             });
 
-            // Initialize on page load
-            toggleRoleFields();
-
-            // Handle form submission
-            $('#registerForm').on('submit', function(e) {
-                var role = $('#roleSelect').val();
+            // 📝 عند إرسال النموذج
+            $('#registerForm').on('submit', function (e) {
+                const role = $('#roleSelect').val();
 
                 if (role === 'Charity') {
                     handleCharityRegistration();
                 } else if (role === 'Beneficiary') {
-                    // Add any beneficiary-specific handling here
                     console.log('Beneficiary registration');
+                } else if (role === 'Donor') {
+                    console.log('Donor registration');
+                    // يمكنك هنا تنفيذ إرسال البيانات لطبقة التبرعات
                 }
             });
         });
@@ -208,17 +292,15 @@
             if (navigator.geolocation) {
                 $('#gpsLoading').show();
                 navigator.geolocation.getCurrentPosition(
-                    function(position) {
+                    function (position) {
                         $('#latitude').val(position.coords.latitude);
                         $('#longitude').val(position.coords.longitude);
                         $('#gpsLoading').hide();
-                        console.log('Location captured:', position.coords.latitude, position.coords.longitude);
                     },
-                    function(error) {
+                    function (error) {
                         $('#gpsLoading').hide();
                         console.warn('Geolocation error:', error.message);
-                        // Set default coordinates (Cairo, Egypt) if geolocation fails
-                        $('#latitude').val(30.0444);
+                        $('#latitude').val(30.0444);    // Cairo fallback
                         $('#longitude').val(31.2357);
                     },
                     {
@@ -228,42 +310,29 @@
                     }
                 );
             } else {
-                console.warn('Geolocation not supported');
-                // Set default coordinates
                 $('#latitude').val(30.0444);
                 $('#longitude').val(31.2357);
+                console.warn('Geolocation not supported');
             }
         }
 
         function toggleRoleFields() {
             const role = $('#roleSelect').val();
-            const donorFields = $('#donorFields');
-            const charityFields = $('#charityFields');
-            const beneficiaryFields = $('#beneficiaryFields');
-            const loadingSurvey = $('#loadingSurvey');
 
-            // Hide all role-specific fields
+            // أخفي كل الحقول المرتبطة بالأدوار
             $('.role-fields').hide();
 
             if (role === 'Donor') {
-                donorFields.show();
-                loadingSurvey.show();
-                iframe.attr('src', 'https://arcg.is/eHWC1');
-
-                // Hide loading indicator when iframe loads
-                iframe.on('load', function() {
-                    loadingSurvey.hide();
-                });
+                $('#donorFields').show();
             } else if (role === 'Charity') {
-                charityFields.show();
+                $('#charityFields').show();
             } else if (role === 'Beneficiary') {
-                beneficiaryFields.show();
+                $('#beneficiaryFields').show();
             }
         }
 
         function handleCharityRegistration() {
-            // This will be called after successful registration
-            setTimeout(function() {
+            setTimeout(function () {
                 const charityData = {
                     attributes: {
                         charity_name: $('input[name="CharityName"]').val(),
@@ -280,7 +349,6 @@
                     }
                 };
 
-                // Send to ArcGIS
                 $.ajax({
                     url: 'https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/addFeatures',
                     type: 'POST',
@@ -288,12 +356,12 @@
                         f: 'json',
                         features: JSON.stringify([charityData])
                     },
-                    success: function(response) {
-                        console.log('Charity data sent to ArcGIS successfully:', response);
+                    success: function (response) {
+                        console.log('Charity data sent successfully:', response);
                         $('#successAlert').show();
                     },
-                    error: function(xhr, status, error) {
-                        console.error('Failed to send charity data to ArcGIS:', error);
+                    error: function (xhr, status, error) {
+                        console.error('Failed to send charity data:', error);
                     }
                 });
             }, 1500);
