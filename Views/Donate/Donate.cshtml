@@ -522,13 +522,20 @@
             if (charitiesLayer) charitiesLayer.visible = ($('input[name="layerFilter"]:checked').val() === 'charity' || $('input[name="layerFilter"]:checked').val() === 'both');
         }
         function zoomToAll() {
-            const layers = getVisibleLayers();
-            if (layers.length === 0 || !layers.some(l => l)) return;
-            Promise.all(layers.filter(l => l).map(l => l.queryExtent())).then(results => {
-                const combined = results.map(r => r.extent).reduce((acc, current) => current ? (acc ? acc.union(current) : current) : acc, null);
-                if (combined) mapView.goTo(combined.expand(1.5));
-            });
-        }
+                    require(["esri/geometry/Extent"], function(Extent) {
+                        const egyptExtent = new Extent({
+                            xmin: 25.0,
+                            ymin: 22.0,
+                            xmax: 36.0,
+                            ymax: 32.0,
+                            spatialReference: { wkid: 4326 } // نظام الإحداثيات الجغرافي
+                        });
+
+                        if (mapView) {
+                            mapView.goTo(egyptExtent);
+                        }
+                    });
+                }
         function showLoadingIndicator(show) {
             const placeholder = '<tr><td colspan="6" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>';
             if (show) $('#beneficiariesTable tbody').html(placeholder);
