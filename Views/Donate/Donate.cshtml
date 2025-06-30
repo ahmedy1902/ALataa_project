@@ -47,7 +47,7 @@
                             <label class="btn btn-outline-primary" for="showBoth"><i class="fas fa-globe"></i> Both</label>
                         </div>
                         <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-outline-primary" id="findNearMeBtn" title="Find cases within 10km of your location"><i class="fas fa-location-arrow"></i> Find Near Me</button>
+                            <button type="button" class="btn btn-outline-info" id="findNearMeBtn" title="Find cases within 10km of your location"><i class="fas fa-location-arrow"></i> Find Near Me</button>
                             <button type="button" class="btn btn-outline-secondary" id="toggleSketchBtn" title="Select multiple points by drawing a shape"><i class="fas fa-draw-polygon"></i> Multi-Select</button>
                             <button type="button" class="btn btn-outline-info" id="zoomToAllBtn" title="Zoom to show all visible points"><i class="fas fa-expand-arrows-alt"></i> Zoom to All</button>
                         </div>
@@ -179,7 +179,6 @@
             let userLocationGraphic = null;
             let runtimeGraphicsLayer;
             let Graphic, Point, geometryEngine, Extent, projection;
-            const extentexpand = 0.5;
 
             const BufferArea = 10;
             const NEEDIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0";
@@ -215,6 +214,7 @@
                 });
 
                 $('#rowsPerPage').on('change', function () {
+                    rowsPerPage = parseInt($(this).val(), 10);
                     currentPage = 1;
                     renderTablePage();
                 });
@@ -338,7 +338,7 @@
                         symbol: { type: "simple-marker", style: "circle", color: "#007bff", size: "12px", outline: { color: [255, 255, 255], width: 2 } }
                     });
                     runtimeGraphicsLayer.add(userLocationGraphic);
-                    mapView.goTo(bufferIn3857.extent.expand(extentexpand));
+                    mapView.goTo(bufferIn3857.extent.expand(1.2));
                     performFilteringAsync();
                 } catch (e) {
                     console.error("Error in handleLocationSuccess:", e);
@@ -464,6 +464,7 @@
                 $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join(''));
             }
 
+            // *** UPDATED: Using the version of this function that you confirmed works for you ***
             function updatePaginationControls(totalRows) {
                 const totalPages = Math.ceil(totalRows / rowsPerPage);
                 const paginationFooter = $('#paginationInfo').closest('.card-footer');
@@ -718,7 +719,6 @@
             }
 
             function updateSelectionCount() {
-                // Placeholder for potential future use
             }
 
             function updateSelectAllCheckboxState() {
@@ -758,6 +758,6 @@
                 if (charitiesLayer) charitiesLayer.visible = "charity" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
             }
 
-        }); // End of $(document).ready()
+        });
     </script>
 }
