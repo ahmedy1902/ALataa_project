@@ -4,57 +4,103 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Al Attaa Platform</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Accounts.styles.css" asp-append-version="true" />
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            opacity: 0;
+            transition: opacity 0.25s ease-in-out;
+        }
+
+            body.body-visible {
+                opacity: 1;
+            }
+
+        main {
+            flex-grow: 1;
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+        }
+
+        .footer {
+            padding: 1rem 0;
+            flex-shrink: 0; /* Prevent footer from shrinking */
+        }
+
+            .footer .social-icons a {
+                color: #6c757d; /* Muted color to match footer text */
+                margin-left: 15px;
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+
+                .footer .social-icons a:hover {
+                    color: #007bff; /* A primary color on hover */
+                }
+    </style>
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Al Attaa Platform</a>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+            <div class="container">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index"><i class="fas fa-hand-holding-heart"></i> Al Attaa Platform</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
                         aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div class="navbar-collapse collapse d-lg-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                        @* <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Staffs" asp-action="Index">Staff</a>
+                            <a class="nav-link" asp-area="" asp-controller="Donate" asp-action="Index">Donate</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Departments" asp-action="Index">Departments</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Patients" asp-action="Index">Patients</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Bills" asp-action="Index">Bills</a>
-                        </li> *@
                     </ul>
                     <ul class="navbar-nav">
                         @if (User.Identity.IsAuthenticated)
                         {
-                            <li class="nav-item">
-                                <form asp-action="Logout" asp-controller="Account" method="post">
-                                    <button type="submit" class="btn btn-danger">Logout</button>
-                                </form>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Welcome, @User.Identity.Name
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                    <li><a class="dropdown-item" href="/Donate/ViewDonationHistory">Donation History</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form asp-action="Logout" asp-controller="Account" method="post" class="d-inline">
+                                            <button type="submit" class="dropdown-item">Logout <i class="fas fa-sign-out-alt"></i></button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </li>
                         }
                         else
                         {
-                            <li class="nav-item">
-                                <a class="nav-link btn btn-primary" asp-action="Login" asp-controller="Account">Login</a>
+                            <li class="nav-item me-2">
+                                <a class="btn btn-outline-light" asp-action="Login" asp-controller="Account">Login</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link btn btn-success" asp-action="Register" asp-controller="Account">Register</a>
+                                <a class="btn btn-success" asp-action="Register" asp-controller="Account">Register</a>
                             </li>
                         }
                     </ul>
@@ -62,20 +108,36 @@
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2025 - Al Attaa Platform - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
+
+    <footer class="border-top footer bg-light text-muted">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <span>&copy; @DateTime.Now.Year - Al Attaa Platform - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a></span>
+                <span class="mx-2 d-none d-md-inline">|</span>
+                <small class="d-block d-md-inline mt-1 mt-md-0">Implemented by Eng. Ahmed Yasser, GIS Track, Intake 45.</small>
+            </div>
+            <div class="social-icons mt-2 mt-md-0">
+                <a href="#" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" title="Twitter"><i class="fab fa-twitter"></i></a>
+                <a href="#" title="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="#" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            </div>
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    <script>
+        window.addEventListener('load', function() {
+            document.body.classList.add('body-visible');
+        });
+    </script>
 </body>
 </html>
