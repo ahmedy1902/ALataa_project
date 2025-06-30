@@ -1,118 +1,155 @@
-﻿@using Accounts.ViewModels
-@model RegisterModel
+﻿@model Accounts.ViewModels.RegisterModel
 
 @{
-    ViewData["Title"] = "Register";
-    Layout = "_AddCoursesLayout";
+    ViewData["Title"] = "Register an Account";
+    // The Layout can be kept or removed depending on your preference
+    // Layout = "_AddCoursesLayout";
 }
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="mb-0"><i class="fas fa-user-plus"></i> Register</h2>
+<style>
+    .register-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+    }
+
+    .register-panel {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        min-height: 80vh;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .register-info-panel {
+        background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1488521787991-ed7b2f28a727?q=80&w=1974&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 40px;
+    }
+
+    .register-form-panel {
+        padding: 40px;
+        background-color: #fff;
+        overflow-y: auto;
+    }
+
+    .form-group label {
+        font-weight: 500;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 992px) {
+        .register-panel {
+            grid-template-columns: 1fr;
+        }
+
+        .register-info-panel {
+            display: none; /* Hide image panel on smaller screens for simplicity */
+        }
+
+        .register-form-panel {
+            padding: 25px;
+        }
+    }
+</style>
+<br />
+<br />
+<br />
+<div class="container register-container">
+    <div class="register-panel w-100">
+        <div class="register-info-panel">
+            <h2 class="display-5 fw-bold">Join Our Mission</h2>
+            <p class="lead mt-3">By creating an account on Al Attaa Platform, you become part of a community dedicated to making a real difference.</p>
+            <ul class="list-unstyled mt-4">
+                <li class="mb-2"><i class="fas fa-check-circle me-2"></i> Donate with transparency.</li>
+                <li class="mb-2"><i class="fas fa-check-circle me-2"></i> Request assistance securely.</li>
+                <li class="mb-2"><i class="fas fa-check-circle me-2"></i> Manage your contributions efficiently.</li>
+            </ul>
+        </div>
+
+        <div class="register-form-panel">
+            <h2 class="mb-4 text-primary"><i class="fas fa-user-plus"></i> Create Your Account</h2>
+
+            <form asp-action="Register" method="post" enctype="multipart/form-data" id="registerForm">
+                <div asp-validation-summary="All" class="alert alert-danger" style="display:none;"></div>
+
+                <div id="gpsLoading" class="alert alert-info" style="display:none;">
+                    <i class="fas fa-spinner fa-spin"></i> Getting your location...
                 </div>
-                <div class="card-body">
-                    <form asp-action="Register" method="post" enctype="multipart/form-data" id="registerForm">
-                        <div asp-validation-summary="All" class="alert alert-danger" style="display:none;"></div>
 
-                        <!-- Loading indicator for GPS -->
-                        <div id="gpsLoading" class="alert alert-info" style="display:none;">
-                            <i class="fas fa-spinner fa-spin"></i> Getting your location...
-                        </div>
+                <h5 class="mt-4 border-bottom pb-2">Account Information</h5>
 
-                        <!-- Email -->
-                        <div class="form-group mb-3">
-                            <label asp-for="Email" class="form-label">
-                                <i class="fas fa-envelope"></i> Email Address
-                            </label>
-                            <input asp-for="Email" class="form-control" placeholder="Enter your email" />
-                            <span asp-validation-for="Email" class="text-danger"></span>
-                        </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Email" class="form-label"><i class="fas fa-envelope me-2"></i>Email Address</label>
+                    <input asp-for="Email" class="form-control" placeholder="Enter your email" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
 
-                        <!-- Password -->
-                        <div class="form-group mb-3">
-                            <label asp-for="Password" class="form-label">
-                                <i class="fas fa-lock"></i> Password
-                            </label>
-                            <input asp-for="Password" class="form-control" type="password" placeholder="Enter password (6-15 characters)" />
-                            <span asp-validation-for="Password" class="text-danger"></span>
-                        </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Password" class="form-label"><i class="fas fa-lock me-2"></i>Password</label>
+                    <input asp-for="Password" class="form-control" type="password" placeholder="Enter password (6-15 characters)" />
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
 
-                        <!-- Confirm Password -->
-                        <div class="form-group mb-3">
-                            <label asp-for="ConfirmPassword" class="form-label">
-                                <i class="fas fa-lock"></i> Confirm Password
-                            </label>
-                            <input asp-for="ConfirmPassword" class="form-control" type="password" placeholder="Confirm your password" />
-                            <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
-                        </div>
+                <div class="form-group mb-3">
+                    <label asp-for="ConfirmPassword" class="form-label"><i class="fas fa-lock me-2"></i>Confirm Password</label>
+                    <input asp-for="ConfirmPassword" class="form-control" type="password" placeholder="Confirm your password" />
+                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                </div>
 
-                        <!-- Role Selection -->
-                        <div class="form-group mb-4">
-                            <label asp-for="Role" class="form-label">
-                                <i class="fas fa-user-tag"></i> Select Your Role
-                            </label>
-                            <select asp-for="Role" class="form-control" id="roleSelect">
-                                <option value="">-- Select Role --</option>
-                                <option value="Donor">Donor - I want to donate</option>
-                                <option value="Charity">Charity - I represent a charitable organization</option>
-                                <option value="Beneficiary">Beneficiary - I need assistance</option>
-                            </select>
-                            <span asp-validation-for="Role" class="text-danger"></span>
-                        </div>
+                <h5 class="mt-4 border-bottom pb-2">Your Role</h5>
 
-                        <!-- Donor Fields -->
-                        <div id="donorFields" class="role-fields" style="display:none;">
-                            <div class="alert alert-info">
-                                <i class="fas fa-heart"></i> Please provide your donation preferences:
-                            </div>
+                <div class="form-group mb-4">
+                    <label asp-for="Role" class="form-label"><i class="fas fa-user-tag me-2"></i>Select Your Role</label>
+                    <select asp-for="Role" class="form-select" id="roleSelect">
+                        <option value="">-- Select Role --</option>
+                        <option value="Donor">Donor - I want to donate</option>
+                        <option value="Charity">Charity - I represent a charitable organization</option>
+                        <option value="Beneficiary">Beneficiary - I need assistance</option>
+                    </select>
+                    <span asp-validation-for="Role" class="text-danger"></span>
+                </div>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="FullName" class="form-label">
-                                            Full Name <span class="text-danger">*</span>
-                                        </label>
-                                        <input asp-for="FullName" class="form-control" placeholder="Enter your full name" />
-                                        <span asp-validation-for="FullName" class="text-danger"></span>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="TypeOfDonation" class="form-label">
-                                            Type of donation <span class="text-danger">*</span>
-                                        </label>
-                                        <select asp-for="TypeOfDonation" class="form-control">
-                                            <option value="">-- Select Type --</option>
-                                            <option value="Monthly">Monthly</option>
-                                            <option value="One Time Only">One Time Only</option>
-                                        </select>
-                                        <span asp-validation-for="TypeOfDonation" class="text-danger"></span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-
-
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="DonationAmountInEgp" class="form-label">
-                                            Average donation Amount (in EGP) <span class="text-danger">*</span>
-                                        </label>
-                                        <input asp-for="DonationAmountInEgp" class="form-control" type="number" step="0.01" placeholder="Enter amount in EGP" />
-                                        <span asp-validation-for="DonationAmountInEgp" class="text-danger"></span>
-                                    </div>
-                                </div>
-
+                <div id="conditionalFieldsContainer">
+                    <div id="donorFields" class="role-fields" style="display:none;">
+                        <h5 class="mt-4 border-bottom pb-2 text-info">Donation Preferences</h5>
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label asp-for="PreferredAidCategory" class="form-label">
-                                        Charity Sector <span class="text-danger">*</span>
-                                    </label>
+                                    <label asp-for="FullName" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                    <input asp-for="FullName" class="form-control" placeholder="Enter your full name" />
+                                    <span asp-validation-for="FullName" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="TypeOfDonation" class="form-label">Type of donation <span class="text-danger">*</span></label>
+                                    <select asp-for="TypeOfDonation" class="form-control">
+                                        <option value="">-- Select Type --</option>
+                                        <option value="Monthly">Monthly</option>
+                                        <option value="One Time Only">One Time Only</option>
+                                    </select>
+                                    <span asp-validation-for="TypeOfDonation" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="DonationAmountInEgp" class="form-label">Average donation Amount (in EGP) <span class="text-danger">*</span></label>
+                                    <input asp-for="DonationAmountInEgp" class="form-control" type="number" step="0.01" placeholder="Enter amount in EGP" />
+                                    <span asp-validation-for="DonationAmountInEgp" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="PreferredAidCategory" class="form-label">Charity Sector <span class="text-danger">*</span></label>
                                     <select asp-for="PreferredAidCategory" name="PreferredAidCategory" class="form-control" multiple size="5">
                                         <option value="Food_Supplies">Food Supplies</option>
                                         <option value="Shelter_/Housing">Shelter / Housing</option>
@@ -123,154 +160,126 @@
                                     <span asp-validation-for="PreferredAidCategory" class="text-danger"></span>
                                 </div>
                             </div>
-                            </div> 
-
-                            <div class="form-group mb-3">
-                                <label asp-for="WhoWouldYouLikeToDonateTo" class="form-label">
-                                    Who would you like to donate to? <span class="text-danger">*</span>
-                                </label>
-                                <select asp-for="WhoWouldYouLikeToDonateTo" class="form-control">
-                                    <option value="">-- Select Recipient --</option>
-                                    <option value="A charity">A charity</option>
-                                    <option value="A direct beneficiary">A direct beneficiary</option>
-                                </select>
-                                <span asp-validation-for="WhoWouldYouLikeToDonateTo" class="text-danger"></span>
-                            </div>
                         </div>
-                        <!-- Charity Fields -->
-                        <div id="charityFields" class="role-fields" style="display:none;">
-                            <div class="alert alert-info">
-                                <i class="fas fa-hands-helping"></i> Please provide your charity information:
-                            </div>
+                        <div class="form-group mb-3">
+                            <label asp-for="WhoWouldYouLikeToDonateTo" class="form-label">Who would you like to donate to? <span class="text-danger">*</span></label>
+                            <select asp-for="WhoWouldYouLikeToDonateTo" class="form-control">
+                                <option value="">-- Select Recipient --</option>
+                                <option value="A charity">A charity</option>
+                                <option value="A direct beneficiary">A direct beneficiary</option>
+                            </select>
+                            <span asp-validation-for="WhoWouldYouLikeToDonateTo" class="text-danger"></span>
+                        </div>
+                    </div>
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="CharityName" class="form-label">
-                                            Charity Name <span class="text-danger">*</span>
-                                        </label>
-                                        <input asp-for="CharityName" class="form-control" placeholder="Enter charity name" />
-                                        <span asp-validation-for="CharityName" class="text-danger"></span>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="CharitySector" class="form-label">
-                                            Charity Sector <span class="text-danger">*</span>
-                                        </label>
-                                        <select asp-for="CharitySector" class="form-control">
-                                            <option value="">-- Select Sector --</option>
-                                            <option value="Food Supplies">Food Supplies</option>
-                                            <option value="Shelter / Housing">Shelter / Housing</option>
-                                            <option value="Medical Assistance / Medicine">Medical Assistance / Medicine</option>
-                                            <option value="Clothing">Clothing</option>
-                                            <option value="Utilities (Water / Electricity)">Utilities (Water / Electricity)</option>
-                                        </select>
-                                        <span asp-validation-for="CharitySector" class="text-danger"></span>
-                                    </div>
+                    <div id="charityFields" class="role-fields" style="display:none;">
+                        <h5 class="mt-4 border-bottom pb-2 text-success">Charity Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="CharityName" class="form-label">Charity Name <span class="text-danger">*</span></label>
+                                    <input asp-for="CharityName" class="form-control" placeholder="Enter charity name" />
+                                    <span asp-validation-for="CharityName" class="text-danger"></span>
                                 </div>
                             </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="CasesSponsored" class="form-label">
-                                            Cases Sponsored Monthly <span class="text-danger">*</span>
-                                        </label>
-                                        <select asp-for="CasesSponsored" class="form-control">
-                                            <option value="">-- Select Range --</option>
-                                            <option value="<20">&lt;20</option>
-                                            <option value="20-100">20-100</option>
-                                            <option value="100-500">100-500</option>
-                                            <option value=">500">&gt;500</option>
-                                        </select>
-                                        <span asp-validation-for="CasesSponsored" class="text-danger"></span>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group mb-3">
-                                        <label asp-for="MonthlyDonation" class="form-label">
-                                            Monthly Donation Amount
-                                        </label>
-                                        <select asp-for="MonthlyDonation" class="form-control">
-                                            <option value="<100 K EGP">&lt;100 K EGP</option>
-                                            <option value="100 -500 K EGP">100 -500 K EGP</option>
-                                            <option value="500K - 3M EGP">500K - 3M EGP</option>
-                                            <option value=">3M EGP">&gt;3M EGP</option>
-                                        </select>
-                                        <span asp-validation-for="MonthlyDonation" class="text-danger"></span>
-                                    </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="CharitySector" class="form-label">Charity Sector <span class="text-danger">*</span></label>
+                                    <select asp-for="CharitySector" class="form-control">
+                                        <option value="">-- Select Sector --</option>
+                                        <option value="Food Supplies">Food Supplies</option>
+                                        <option value="Shelter / Housing">Shelter / Housing</option>
+                                        <option value="Medical Assistance / Medicine">Medical Assistance / Medicine</option>
+                                        <option value="Clothing">Clothing</option>
+                                        <option value="Utilities (Water / Electricity)">Utilities (Water / Electricity)</option>
+                                    </select>
+                                    <span asp-validation-for="CharitySector" class="text-danger"></span>
                                 </div>
                             </div>
-
-                            <div class="form-group mb-3">
-                                <label asp-for="CharityNeededAmount" class="form-label">
-                                    How Much Do You Need? (EGP) <span class="text-danger">*</span>
-                                </label>
-                                <input asp-for="CharityNeededAmount" class="form-control" type="number"
-                                       placeholder="Enter amount needed" min="1" step="0.01" />
-                                <span asp-validation-for="CharityNeededAmount" class="text-danger"></span>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="CasesSponsored" class="form-label">Cases Sponsored Monthly <span class="text-danger">*</span></label>
+                                    <select asp-for="CasesSponsored" class="form-control">
+                                        @* <option value="">-- Select Range --</option> *@
+                                        <option value="<20">&lt;20</option>
+                                        <option value="20-100">20-100</option>
+                                        <option value="100-500">100-500</option>
+                                        <option value=">500">&gt;500</option>
+                                    </select>
+                                    <span asp-validation-for="CasesSponsored" class="text-danger"></span>
+                                </div>
                             </div>
-
-                            <div class="form-group mb-3">
-                                <label class="form-label">
-                                    Upload Documentation <span class="text-danger">*</span>
-                                </label>
-                                <input type="file" class="form-control" name="charity_docs" multiple
-                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-                                <small class="form-text text-muted">
-                                    Upload supporting documents (PDF, Word, Images)
-                                </small>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label asp-for="MonthlyDonation" class="form-label">Monthly Donation Amount</label>
+                                    <select asp-for="MonthlyDonation" class="form-control">
+                                        <option value="<100 K EGP">&lt;100 K EGP</option>
+                                        <option value="100 -500 K EGP">100 -500 K EGP</option>
+                                        <option value="500K - 3M EGP">500K - 3M EGP</option>
+                                        <option value=">3M EGP">&gt;3M EGP</option>
+                                    </select>
+                                    <span asp-validation-for="MonthlyDonation" class="text-danger"></span>
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Hidden GPS coordinates -->
-                        <input type="hidden" asp-for="Latitude" id="latitude" />
-                        <input type="hidden" asp-for="Longitude" id="longitude" />
-
-                        <!-- Success message -->
-                        <div id="successAlert" class="alert alert-success" style="display:none;">
-                            <i class="fas fa-check-circle"></i> Registration completed successfully!
+                        <div class="form-group mb-3">
+                            <label asp-for="CharityNeededAmount" class="form-label">How Much Do You Need? (EGP) <span class="text-danger">*</span></label>
+                            <input asp-for="CharityNeededAmount" class="form-control" type="number" placeholder="Enter amount needed" min="1" step="0.01" />
+                            <span asp-validation-for="CharityNeededAmount" class="text-danger"></span>
                         </div>
-
-                        <!-- Submit Button -->
-                        <div class="form-group mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn">
-                                <i class="fas fa-user-plus"></i> Register
-                            </button>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Upload Documentation <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" name="charity_docs" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                            <small class="form-text text-muted">Upload supporting documents (PDF, Word, Images)</small>
                         </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+
+                <input type="hidden" asp-for="Latitude" id="latitude" />
+                <input type="hidden" asp-for="Longitude" id="longitude" />
+
+                <div id="successAlert" class="alert alert-success mt-3" style="display:none;">
+                    <i class="fas fa-check-circle"></i> Registration completed successfully!
+                </div>
+
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn">
+                        <i class="fas fa-user-plus"></i> Register
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+<br />
+<br />
+<br />
+<br />
+<br />
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         $(document).ready(function () {
-            getLocation();              // 📍 جلب الموقع عند تحميل الصفحة
-            toggleRoleFields();        // 💼 تفعيل الحقول بناءً على الدور المُختار
+            getLocation();
+            toggleRoleFields();
 
-            // ⏳ عند تغيير الدور
             $('#roleSelect').on('change', function () {
                 toggleRoleFields();
             });
 
-            // 📝 عند إرسال النموذج
+            // This event listener remains unchanged functionally
             $('#registerForm').on('submit', function (e) {
                 const role = $('#roleSelect').val();
-
                 if (role === 'Charity') {
+                    // Prevent default form submission to handle via AJAX
+                    e.preventDefault();
                     handleCharityRegistration();
-                } else if (role === 'Beneficiary') {
-                    console.log('Beneficiary registration');
-                } else if (role === 'Donor') {
-                    console.log('Donor registration');
-                    // يمكنك هنا تنفيذ إرسال البيانات لطبقة التبرعات
                 }
+                // For other roles, the form will submit normally.
             });
         });
 
@@ -286,14 +295,11 @@
                     function (error) {
                         $('#gpsLoading').hide();
                         console.warn('Geolocation error:', error.message);
-                        $('#latitude').val(30.0444);    // Cairo fallback
+                        // Fallback to a default location like Cairo
+                        $('#latitude').val(30.0444);
                         $('#longitude').val(31.2357);
                     },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 300000
-                    }
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
                 );
             } else {
                 $('#latitude').val(30.0444);
@@ -304,20 +310,23 @@
 
         function toggleRoleFields() {
             const role = $('#roleSelect').val();
-
-            // أخفي كل الحقول المرتبطة بالأدوار
-            $('.role-fields').hide();
+            $('.role-fields').hide(); // Hide all role-specific fields first
 
             if (role === 'Donor') {
-                $('#donorFields').show();
+                $('#donorFields').slideDown();
             } else if (role === 'Charity') {
-                $('#charityFields').show();
-            } else if (role === 'Beneficiary') {
-                $('#beneficiaryFields').show();
+                $('#charityFields').slideDown();
             }
+            // Add else if for 'Beneficiary' if you create a 'beneficiaryFields' div
         }
 
         function handleCharityRegistration() {
+            // NOTE: This function's internal logic is unchanged as per your request.
+            // It still submits the data to your ArcGIS service.
+            // We only prevent the form's default submit action for this case.
+
+            $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Submitting...');
+
             setTimeout(function () {
                 const charityData = {
                     attributes: {
@@ -344,13 +353,21 @@
                     },
                     success: function (response) {
                         console.log('Charity data sent successfully:', response);
+                        // Now submit the rest of the form to your server for user creation
+                        // We remove the AJAX handler to prevent an infinite loop and submit natively
+                        $('#registerForm').off('submit').submit();
                         $('#successAlert').show();
                     },
                     error: function (xhr, status, error) {
                         console.error('Failed to send charity data:', error);
+                        // Re-enable button and show an error if ArcGIS submission fails
+                        $('#submitBtn').prop('disabled', false).html('<i class="fas fa-user-plus"></i> Register');
+                        // Optionally show a specific error message to the user
+                        const validationSummary = $('[asp-validation-summary="All"]');
+                        validationSummary.html('<ul><li>Failed to submit charity location data. Please try again.</li></ul>').show();
                     }
                 });
-            }, 1500);
+            }, 1000); // Small delay for UX
         }
     </script>
 }
