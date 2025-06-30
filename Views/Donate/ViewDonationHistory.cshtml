@@ -106,7 +106,9 @@
                     if (d.donation_date) {
                         const ms = parseInt(d.donation_date, 10);
                         if (ms > 0) {
-                            dateStr = new Date(ms).toISOString().split('T')[0]; // Format as YYYY-MM-DD
+                            // dateStr = new Date(ms).toISOString().split('T')[0]; Format as YYYY-MM-DD
+                                    // Format as YYYY-MM-DD HH:MM:SS
+                                  dateStr = new Date(ms).toLocaleString('sv-SE');
                         }
                     }
                     return {

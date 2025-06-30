@@ -179,6 +179,7 @@
             let userLocationGraphic = null;
             let runtimeGraphicsLayer;
             let Graphic, Point, geometryEngine, Extent, projection;
+            let isSelectionModeActive = false;
 
             const BufferArea = 10;
             const NEEDIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0";
@@ -198,12 +199,14 @@
                 $('#submitAllBtn').on("click", submitAllDonations);
 
                 $('#governorateFilter, #roleFilter, #fieldFilter, #hideZeroNeededFilter, input[name="layerFilter"]').on('change', () => {
+                    isSelectionModeActive = false;
                     performFilteringAsync();
                 });
 
                 $('#showAllBtn').on('click', function () {
                     $('#governorateFilter, #roleFilter, #fieldFilter').val('');
                     $('#hideZeroNeededFilter').prop('checked', false);
+                    isSelectionModeActive = false;
                     nearMeFilterGeometry = null;
                     if (userLocationGraphic) {
                         runtimeGraphicsLayer.remove(userLocationGraphic);
@@ -362,14 +365,18 @@
             function performFilteringAsync() {
                 showLoadingIndicator(true, "Applying filters...");
                 setTimeout(() => {
-                    const spatialFilter = getCombinedSpatialFilter();
-                    applyMapLayerFilter(spatialFilter);
-                    const attributeFilters = getAttributeFilters();
                     let results = [];
-                    for (const beneficiary of allBeneficiaries) {
-                        const spatialMatch = !spatialFilter || (beneficiary.geometry && geometryEngine.contains(spatialFilter, beneficiary.geometry));
-                        if (spatialMatch && checkAttributeMatch(beneficiary, attributeFilters)) {
-                            results.push(beneficiary);
+                    if (isSelectionModeActive) {
+                        results = Array.from(selectedFeatures.values());
+                    } else {
+                        const spatialFilter = getCombinedSpatialFilter();
+                        applyMapLayerFilter(spatialFilter);
+                        const attributeFilters = getAttributeFilters();
+                        for (const beneficiary of allBeneficiaries) {
+                            const spatialMatch = !spatialFilter || (beneficiary.geometry && geometryEngine.contains(spatialFilter, beneficiary.geometry));
+                            if (spatialMatch && checkAttributeMatch(beneficiary, attributeFilters)) {
+                                results.push(beneficiary);
+                            }
                         }
                     }
                     filteredBeneficiaries = results;
@@ -464,7 +471,6 @@
                 $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join(''));
             }
 
-            // *** UPDATED: Using the version of this function that you confirmed works for you ***
             function updatePaginationControls(totalRows) {
                 const totalPages = Math.ceil(totalRows / rowsPerPage);
                 const paginationFooter = $('#paginationInfo').closest('.card-footer');
@@ -581,9 +587,8 @@
                 selectedFeatures.clear();
                 if (sketchViewModel) sketchViewModel.layer.removeAll();
                 if (runtimeGraphicsLayer) runtimeGraphicsLayer.removeAll();
-                nearMeFilterGeometry = null;
-                updateSelectionCount();
-                updateTableSelectionVisuals();
+                isSelectionModeActive = false; // Exit selection mode
+                performFilteringAsync(); // Re-apply normal filters
                 highlightSelection();
             }
 
@@ -612,22 +617,36 @@
                     const geometry = event.graphic.geometry;
                     sketchViewModel.layer.removeAll();
                     toggleSketchMode(false);
+                    showLoadingIndicator(true, "Finding beneficiaries in selection...");
+
+                    // Query the layers for features within the drawn polygon
                     const layersToQuery = getVisibleLayers();
-                    const queryPromises = layersToQuery.map(layer => layer.queryFeatures({ geometry: geometry, spatialRelationship: "intersects", outFields: ["*"] }));
+                    const queryPromises = layersToQuery.map(layer => layer.queryFeatures({
+                        geometry: geometry,
+                        spatialRelationship: "intersects",
+                        outFields: ["*"],
+                        returnGeometry: true
+                    }));
+
                     Promise.all(queryPromises).then(results => {
-                        results.forEach((featureSet, index) => {
-                            const layerType = "Needies" === layersToQuery[index].title ? "needy" : "charity";
+                        selectedFeatures.clear();
+                        results.forEach(featureSet => {
                             featureSet.features.forEach(feature => {
-                                const processed = allBeneficiaries.find(b => b.objectId === feature.attributes.objectid && b.layerType === layerType);
-                                if (processed && !selectedFeatures.has(processed.id)) {
+                                const processed = allBeneficiaries.find(b => b.objectId === feature.attributes.objectid && b.layerType === (feature.layer.title === 'Needies' ? 'needy' : 'charity'));
+                                if(processed) {
                                     selectedFeatures.set(processed.id, processed);
                                 }
                             });
                         });
-                        updateSelectionCount();
-                        updateTableSelectionVisuals();
+
+                        isSelectionModeActive = true; // Activate selection mode
+                        performFilteringAsync(); // This will now only show selected features
                         highlightSelection();
-                    }).catch(err => console.error("Sketch query error:", err));
+
+                    }).catch(err => {
+                        console.error("Sketch query error:", err);
+                        showLoadingIndicator(false);
+                    });
                 }
             }
 
