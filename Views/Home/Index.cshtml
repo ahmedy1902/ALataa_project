@@ -2,62 +2,252 @@
     ViewData["Title"] = "Al Attaa Platform - Home Page";
 }
 
-<div class="jumbotron text-center bg-light">
-    <h1 class="display-4">Welcome to Al Attaa Platform</h1>
-    <p class="lead">We believe in the power of giving. Our platform connects generous hearts with those in need, supporting impactful work of charitable organizations.</p>
-    <hr class="my-4">
-    <p>Join us today to make a difference in others' lives.</p>
-    <p>
-        <a href="/Account/Register" class="btn btn-success btn-lg">Register Now for Free</a>
-        <a href="/Account/Login" class="btn btn-outline-primary btn-lg ml-2">Login</a>
-    </p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+
+<style>
+    /* Hero Section Styles */
+    .hero-section {
+        background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?q=80&w=2070&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        color: white;
+        padding: 120px 0;
+        text-align: center;
+    }
+
+        .hero-section h1 {
+            font-weight: 700;
+            font-size: 3.5rem;
+        }
+
+        .hero-section .lead {
+            font-size: 1.3rem;
+            max-width: 600px;
+            margin: 1rem auto;
+        }
+
+        .hero-section .btn {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            margin: 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+            .hero-section .btn:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }
+
+    /* Sections General Styles */
+    .section {
+        padding: 80px 0;
+    }
+
+    .section-title {
+        text-align: center;
+        margin-bottom: 50px;
+        font-weight: 700;
+        position: relative;
+        padding-bottom: 15px;
+    }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            display: block;
+            width: 60px;
+            height: 3px;
+            background: #007bff;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+    /* Pillars Section Styles */
+    .pillar-card {
+        border: none;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+        .pillar-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .pillar-card i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+    /* Stats Section Styles */
+    .stats-section {
+        background-color: #f8f9fa;
+    }
+
+    .stat-item h3 {
+        font-size: 3rem;
+        font-weight: 700;
+        color: #007bff;
+    }
+
+    /* Feature Section Styles */
+    .feature-section .row {
+        align-items: center;
+        margin-bottom: 4rem;
+    }
+
+    .feature-section img {
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        width: 100%;
+        height: auto;
+    }
+
+</style>
+
+<div class="hero-section">
+    <div class="container" data-aos="fade-up">
+        <h1 class="display-4">Welcome to Al Attaa Platform</h1>
+        <p class="lead">We believe in the power of giving. Our platform connects generous hearts with those in need, supporting the impactful work of charitable organizations.</p>
+        <hr class="my-4 bg-light">
+        <p>Join us today to make a difference in others' lives.</p>
+        <p>
+            <a href="/Account/Register" class="btn btn-success btn-lg">Register Now for Free</a>
+            <a href="/Donate" class="btn btn-outline-light btn-lg">Donate Now</a>
+        </p>
+    </div>
 </div>
 
-<div class="container py-5">
+<div class="container section">
+    <h2 class="section-title" data-aos="fade-up">Our Platform Serves Everyone</h2>
     <div class="row text-center">
-        <div class="col-md-4">
-            <div class="card shadow-sm mb-4">
+        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
+            <div class="card pillar-card h-100 p-4">
                 <div class="card-body">
-                    <h5 class="card-title text-primary"><i class="fas fa-hand-holding-heart fa-2x mb-3"></i><br> For Generous Donors</h5>
+                    <i class="fas fa-hand-holding-heart text-primary"></i>
+                    <h5 class="card-title mt-3">For Generous Donors</h5>
                     <p class="card-text">Contribute with your generosity to change lives. Donate easily and transparently to trusted charities or individual cases.</p>
-                    <a href="/Donate" class="btn btn-outline-primary">Donate Now</a>
+                    <a href="/Donate" class="btn btn-primary mt-3">Discover Cases</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm mb-4">
+        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
+            <div class="card pillar-card h-100 p-4">
                 <div class="card-body">
-                    <h5 class="card-title text-info"><i class="fas fa-hands-helping fa-2x mb-3"></i><br> For Valued Beneficiaries</h5>
+                    <i class="fas fa-hands-helping text-info"></i>
+                    <h5 class="card-title mt-3">For Valued Beneficiaries</h5>
                     <p class="card-text">Submit your request for support easily and securely. We are here to help you access the aid you need.</p>
-                    <a href="/Account/Register" class="btn btn-outline-info">Request Assistance</a>
+                    <a href="/Account/Register" class="btn btn-info mt-3">Request Assistance</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card shadow-sm mb-4">
+        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="300">
+            <div class="card pillar-card h-100 p-4">
                 <div class="card-body">
-                    <h5 class="card-title text-success"><i class="fas fa-building fa-2x mb-3"></i><br> For Charitable Organizations</h5>
+                    <i class="fas fa-building text-success"></i>
+                    <h5 class="card-title mt-3">For Charitable Organizations</h5>
                     <p class="card-text">Expand your charitable reach and efficiently support those in need. Integrated management for donations and requests.</p>
-                    <a href="/Account/Register" class="btn btn-outline-success">Join as an Organization</a>
+                    <a href="/Account/Register" class="btn btn-success mt-3">Join as an Organization</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="text-center mt-5">
-    <h3>Why Choose Al Attaa Platform?</h3>
-    <ul class="list-unstyled">
-        <li><i class="fas fa-check-circle text-success mr-2"></i> Ease of Use</li>
-        <li><i class="fas fa-check-circle text-success mr-2"></i> Full Transparency</li>
-        <li><i class="fas fa-check-circle text-success mr-2"></i> Data Security and Protection</li>
-        <li><i class="fas fa-check-circle text-success mr-2"></i> Continuous Technical Support</li>
-    </ul>
-    <p>
-        <a href="#" class="btn btn-link">Discover Our Success Stories</a>
-    </p>
+<div class="section stats-section">
+    <div class="container">
+        <h2 class="section-title" data-aos="fade-up">Our Impact in Numbers</h2>
+        <div class="row text-center">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="stat-item">
+                    <h3><span class="counter" data-target="1250">0</span>+</h3>
+                    <p class="lead">Generous Donors</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="stat-item">
+                    <h3><span class="counter" data-target="820">0</span>+</h3>
+                    <p class="lead">Cases Supported</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                <div class="stat-item">
+                    <h3>$<span class="counter" data-target="150000">0</span>+</h3>
+                    <p class="lead">Total Donations</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container section feature-section">
+    <h2 class="section-title" data-aos="fade-up">Why Choose Al Attaa Platform?</h2>
+    <div class="row" data-aos="fade-right">
+        <div class="col-md-6">
+            <img src="/Intelligent Interactive Map.png" class="img-fluid" alt="Interactive Map">
+        </div>
+        <div class="col-md-6">
+            <h4>Intelligent Interactive Map</h4>
+            <p>It's not just a map, but a powerful analytical tool. Use smart clustering to display thousands of cases, dynamic symbols to identify the greatest needs, and search near you or within a specific governorate with the click of a button.</p>
+        </div>
+    </div>
+    <div class="row" data-aos="fade-left">
+        <div class="col-md-6 order-md-2">
+            <img src="https://cdn.supervisely.com/blog/advanced-dataset-filters/cover.png" class="img-fluid" alt="Advanced Filters">
+        </div>
+        <div class="col-md-6 order-md-1">
+            <h4>Advanced Filters & Precise Sorting</h4>
+            <p>Don't get lost in a sea of data. Use our advanced filters to find exactly what you're looking for, whether by type, field, or even the date a case was added. Sort the results with a click to make your decision easier.</p>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
-    <script src="https://kit.fontawesome.com/your-font-awesome-kit-code.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <script>
+        // Initialize AOS (Animate on Scroll)
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+
+        // Animated Counter Logic
+        function animateCounters() {
+            const counters = document.querySelectorAll('.counter');
+            const speed = 200; // The lower this number, the faster the animation
+
+            counters.forEach(counter => {
+                const updateCount = () => {
+                    const target = +counter.getAttribute('data-target');
+                    const count = +counter.innerText.replace(/,/g, ''); // Remove commas for calculation
+                    const inc = target / speed;
+
+                    if (count < target) {
+                        counter.innerText = Math.ceil(count + inc);
+                        setTimeout(updateCount, 10);
+                    } else {
+                        counter.innerText = target.toLocaleString('en-US');
+                    }
+                };
+                updateCount();
+            });
+        }
+
+        // Use Intersection Observer to trigger animation only when section is visible
+        const statsSection = document.querySelector('.stats-section');
+        if (statsSection) {
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        animateCounters();
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+            observer.observe(statsSection);
+        }
+    </script>
 }
