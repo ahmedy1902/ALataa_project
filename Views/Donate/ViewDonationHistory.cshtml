@@ -42,11 +42,11 @@
                 <table class="table table-bordered table-striped" id="donationHistoryTable">
                     <thead class="table-dark">
                         <tr>
-                            <th>Date</th>
-                            <th>Beneficiary Email</th>
-                            <th>User Type</th>
-                            <th>Donation Field</th>
-                            <th>Donation Amount</th>
+                            <th class="sortable-header" data-sort="date" style="cursor: pointer;">Date <i class="sort-icon fas fa-sort"></i></th>
+                            <th class="sortable-header" data-sort="recipientEmail" style="cursor: pointer;">Beneficiary Email <i class="sort-icon fas fa-sort"></i></th>
+                            <th class="sortable-header" data-sort="userType" style="cursor: pointer;">User Type <i class="sort-icon fas fa-sort"></i></th>
+                            <th class="sortable-header" data-sort="donationField" style="cursor: pointer;">Donation Field <i class="sort-icon fas fa-sort"></i></th>
+                            <th class="sortable-header" data-sort="amount" style="cursor: pointer;">Donation Amount <i class="sort-icon fas fa-sort"></i></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,8 +90,10 @@
             let filteredRecords = [];
             let currentPage = 1;
             let rowsPerPage = 25;
+            // *** ADDED: Variables to track sorting state ***
+            let currentSortColumn = 'date'; // Default sort column
+            let currentSortDirection = 'desc'; // Default sort direction (newest first)
 
-            // 💡 We serialize the C# model data into a JavaScript variable on page load.
             const rawDonations = @Html.Raw(JsonSerializer.Serialize(Model));
             const accountsLookup = @Html.Raw(JsonSerializer.Serialize(accounts));
 
@@ -103,16 +105,17 @@
                 allHistoryRecords = rawDonations.map(d => {
                     const account = accountsLookup.find(x => x.email == d.recipient_email);
                     let dateStr = "-";
+                    let dateObj = null;
                     if (d.donation_date) {
                         const ms = parseInt(d.donation_date, 10);
                         if (ms > 0) {
-                            // dateStr = new Date(ms).toISOString().split('T')[0]; Format as YYYY-MM-DD
-                                    // Format as YYYY-MM-DD HH:MM:SS
-                                  dateStr = new Date(ms).toLocaleString('sv-SE');
+                            dateObj = new Date(ms);
+                            dateStr = dateObj.toLocaleString('sv-SE'); // Format YYYY-MM-DD HH:MM:SS
                         }
                     }
                     return {
                         date: dateStr,
+                        dateObject: dateObj, // Keep date object for accurate sorting
                         recipientEmail: d.recipient_email || "-",
                         userType: account?.userType || "Unknown",
                         donationField: d.donation_field || account?.HelpFields || "-",
@@ -121,7 +124,7 @@
                 });
 
                 populateFilters();
-                applyFilters(); // Apply default filters and render the first page
+                applyFilters();
             }
 
             function applyFilters() {
@@ -133,12 +136,36 @@
                 filteredRecords = allHistoryRecords.filter(record => {
                     const typeMatch = !selectedUserType || record.userType === selectedUserType;
                     const fieldMatch = !selectedField || record.donationField === selectedField;
-                    const fromDateMatch = !fromDate || (record.date !== "-" && new Date(record.date) >= new Date(fromDate));
-                    const toDateMatch = !toDate || (record.date !== "-" && new Date(record.date) <= new Date(toDate));
+                    const fromDateMatch = !fromDate || (record.dateObject && record.dateObject >= new Date(fromDate));
+                    const toDateMatch = !toDate || (record.dateObject && record.dateObject <= new Date(new Date(toDate).setHours(23, 59, 59, 999)));
                     return typeMatch && fieldMatch && fromDateMatch && toDateMatch;
                 });
 
-                currentPage = 1; // Reset to page 1 after every filter change
+                // *** ADDED: Sorting logic ***
+                if (currentSortColumn) {
+                    filteredRecords.sort((a, b) => {
+                        let valA = a[currentSortColumn];
+                        let valB = b[currentSortColumn];
+
+                        // Use date object for accurate date sorting
+                        if (currentSortColumn === 'date') {
+                            valA = a.dateObject;
+                            valB = b.dateObject;
+                        }
+
+                        let comparison = 0;
+                        if (valA > valB) {
+                            comparison = 1;
+                        } else if (valA < valB) {
+                            comparison = -1;
+                        }
+
+                        return currentSortDirection === 'asc' ? comparison : -comparison;
+                    });
+                }
+
+                currentPage = 1;
+                updateSortIcons();
                 renderTablePage();
             }
 
@@ -167,6 +194,15 @@
                 });
             }
 
+            // *** NEW: Function to update sort icons in the table header ***
+            function updateSortIcons() {
+                $('#donationHistoryTable .sort-icon').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
+                if (currentSortColumn) {
+                    const iconClass = currentSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+                    $(`th[data-sort="${currentSortColumn}"] .sort-icon`).removeClass('fa-sort').addClass(iconClass);
+                }
+            }
+
             function updatePaginationControls() {
                 const totalRows = filteredRecords.length;
                 const totalPages = Math.ceil(totalRows / rowsPerPage);
@@ -180,7 +216,6 @@
 
                 paginationNav.show();
                 const navUl = paginationNav.find('ul').empty();
-
                 const prevDisabled = currentPage === 1 ? 'disabled' : '';
                 const nextDisabled = currentPage === totalPages ? 'disabled' : '';
 
@@ -190,7 +225,6 @@
                     navUl.append(`<li class="page-item ${activeClass}"><a class="page-link" href="#">${i}</a></li>`);
                 }
                 navUl.append(`<li class="page-item ${nextDisabled}" id="nextPage"><a class="page-link" href="#">&raquo;</a></li>`);
-
                 $('#paginationInfo').text(`Page ${currentPage} of ${totalPages}`);
             }
 
@@ -206,27 +240,40 @@
 
             $("#clearFilters").on('click', function () {
                 $("#userTypeFilter, #fieldFilter, #fromDate, #toDate").val("");
+                // Reset sorting to default when clearing filters
+                currentSortColumn = 'date';
+                currentSortDirection = 'desc';
                 applyFilters();
             });
 
             $('#rowsPerPageSelect').on('change', function(){
                 rowsPerPage = parseInt($(this).val(), 10);
-                applyFilters(); // Re-filter and re-render from page 1
+                currentPage = 1; // Go to first page when changing page size
+                renderTablePage();
             });
 
             $('#paginationNav').on('click', 'a.page-link', function(e){
                 e.preventDefault();
                 const targetLi = $(this).parent();
-
                 if (targetLi.hasClass('disabled') || targetLi.hasClass('active')) return;
-
                 let newPage = currentPage;
                 if (targetLi.is('#prevPage')) newPage--;
                 else if (targetLi.is('#nextPage')) newPage++;
                 else newPage = parseInt($(this).text(), 10);
-
                 currentPage = newPage;
                 renderTablePage();
+            });
+
+            // *** ADDED: Click handler for sortable table headers ***
+            $('#donationHistoryTable').on('click', '.sortable-header', function() {
+                const column = $(this).data('sort');
+                if (currentSortColumn === column) {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = column;
+                    currentSortDirection = 'asc';
+                }
+                applyFilters(); // Re-apply filters which will also apply the new sort
             });
 
             // --- Initial Load ---

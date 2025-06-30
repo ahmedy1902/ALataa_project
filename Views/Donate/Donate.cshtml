@@ -3,7 +3,7 @@
     ViewData["Title"] = "Donate";
 }
 
-<div class="container-fluid py-4">
+<div class="container py-4">
     <div class="row mb-4">
         <div class="col-md-8 mx-auto">
             <div class="card shadow-sm">
@@ -63,18 +63,27 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <h4 class="mb-0"><i class="fas fa-table"></i> Beneficiaries List</h4>
-                    <div class="d-flex gap-3 flex-wrap align-items-center">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
                         <select id="governorateFilter" class="form-select form-select-sm" style="width: 180px;">
                             <option value="">All Governorates</option>
-                        </select>
-                        <select id="roleFilter" class="form-select form-select-sm" style="width: 150px;"></select>
-                        <select id="fieldFilter" class="form-select form-select-sm" style="width: 150px;"></select>
+                        </select>          
+                        <select id="roleFilter" class="form-select form-select-sm" style="width: 140px;" title="Filter by Type"></select>
+                        <select id="fieldFilter" class="form-select form-select-sm" style="width: 140px;" title="Filter by Field"></select>
+
+                        <div class="input-group input-group-sm" style="width: 280px;">
+                            <span class="input-group-text">From</span>
+                            <input type="date" id="creationFromDate" class="form-control" title="Filter by creation date from">
+                            <span class="input-group-text">To</span>
+                            <input type="date" id="creationToDate" class="form-control" title="Filter by creation date to">
+                        </div>
+
                         <div class="form-check form-switch" title="Hide beneficiaries whose needs have been met">
                             <input class="form-check-input" type="checkbox" role="switch" id="hideZeroNeededFilter">
                             <label class="form-check-label" for="hideZeroNeededFilter">Hide Completed</label>
                         </div>
+
                         <div class="btn-group btn-group-sm">
                             <button type="button" class="btn btn-outline-primary" id="showAllBtn">Show All</button>
                             <button type="button" class="btn btn-outline-danger" id="clearSelectionBtn" title="Clear all selections"><i class="fas fa-times"></i> Clear Selections</button>
@@ -88,15 +97,16 @@
                             <thead class="table-light">
                                 <tr>
                                     <th width="5%"><input type="checkbox" id="selectAllCheckbox" title="Select/Deselect All Visible on this page"></th>
-                                    <th width="25%">Name</th>
-                                    <th width="15%">Needed</th>
-                                    <th width="15%">Type</th>
-                                    <th width="20%">Fields/Sector</th>
-                                    <th width="20%">Donate</th>
+                                    <th width="20%" class="sortable-header" data-sort="name" style="cursor: pointer;">Name <i class="sort-icon fas fa-sort"></i></th>
+                                    <th width="15%" class="sortable-header" data-sort="creationDate" style="cursor: pointer;">Date Added <i class="sort-icon fas fa-sort"></i></th>
+                                    <th width="15%" class="sortable-header" data-sort="neededAmount" style="cursor: pointer;">Needed <i class="sort-icon fas fa-sort"></i></th>
+                                    <th width="15%" class="sortable-header" data-sort="userType" style="cursor: pointer;">Type <i class="sort-icon fas fa-sort"></i></th>
+                                    <th width="15%">Fields/Sector</th>
+                                    <th width="15%">Donate</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td colspan="6" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>
+                                <tr id="loadingRow"><td colspan="7" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -180,6 +190,8 @@
             let runtimeGraphicsLayer;
             let Graphic, Point, geometryEngine, Extent, projection;
             let isSelectionModeActive = false;
+            let currentSortColumn = 'default';
+            let currentSortDirection = 'asc';
 
             const BufferArea = 10;
             const NEEDIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0";
@@ -198,15 +210,15 @@
                 $(document).on("click", ".remove-donation-btn", handleRemoveDonation);
                 $('#submitAllBtn').on("click", submitAllDonations);
 
-                $('#governorateFilter, #roleFilter, #fieldFilter, #hideZeroNeededFilter, input[name="layerFilter"]').on('change', () => {
+                $('#governorateFilter, #roleFilter, #fieldFilter, #hideZeroNeededFilter, input[name="layerFilter"], #creationFromDate, #creationToDate').on('change', () => {
                     isSelectionModeActive = false;
                     performFilteringAsync();
                 });
 
                 $('#showAllBtn').on('click', function () {
-                    $('#governorateFilter, #roleFilter, #fieldFilter').val('');
-                    $('#hideZeroNeededFilter').prop('checked', false);
+                    $('#governorateFilter, #roleFilter, #fieldFilter, #creationFromDate, #creationToDate').val('');
                     isSelectionModeActive = false;
+                    currentSortColumn = 'default';
                     nearMeFilterGeometry = null;
                     if (userLocationGraphic) {
                         runtimeGraphicsLayer.remove(userLocationGraphic);
@@ -234,6 +246,17 @@
                 $('#selectAllCheckbox').on('change', handleSelectAll);
                 $(document).on('change', '.row-checkbox', handleRowCheckboxChange);
                 $('#findNearMeBtn').on('click', findNearMe);
+
+                $('#beneficiariesTable').on('click', '.sortable-header', function() {
+                    const column = $(this).data('sort');
+                    if (currentSortColumn === column) {
+                        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSortColumn = column;
+                        currentSortDirection = 'asc';
+                    }
+                    performFilteringAsync();
+                });
             }
 
             function initializeMap() {
@@ -244,42 +267,18 @@
                     "esri/geometry/Extent", "esri/geometry/geometryEngine", "esri/geometry/projection",
                     "esri/Graphic", "esri/geometry/Point"
                 ], function (Map, MapView, FeatureLayer, GraphicsLayer, SketchViewModel, SimpleRenderer, SimpleMarkerSymbol, esriExtent, esriGeometryEngine, esriProjection, esriGraphic, esriPoint) {
-
-                    geometryEngine = esriGeometryEngine;
-                    Graphic = esriGraphic;
-                    Point = esriPoint;
-                    Extent = esriExtent;
-                    projection = esriProjection;
-
+                    geometryEngine = esriGeometryEngine; Graphic = esriGraphic; Point = esriPoint; Extent = esriExtent; projection = esriProjection;
                     const map = new Map({ basemap: "streets-navigation-vector" });
-                    mapView = new MapView({
-                        container: "mapViewDiv", map: map, center: [31.2357, 30.0444], zoom: 6,
-                        popup: { dockEnabled: true, dockOptions: { breakpoint: false, position: "top-right" } },
-                        highlightOptions: { color: [255, 255, 0, 1], haloOpacity: 0.9, fillOpacity: 0.4 }
-                    });
-
-                    const createBeneficiaryRenderer = (color) => new SimpleRenderer({
-                        symbol: new SimpleMarkerSymbol({ style: "circle", color: color, outline: { color: "white", width: 1 } }),
-                        visualVariables: [{ type: "size", field: "how_much_do_you_need", stops: [{ value: 100, size: "8px" }, { value: 5000, size: "16px" }, { value: 50000, size: "32px" }] }]
-                    });
-                    const createClusterConfig = (popupTitle) => ({
-                        type: "cluster", clusterRadius: "80px", popupTemplate: { title: `Cluster of ${popupTitle}`, content: "This cluster represents {cluster_count} beneficiaries." },
-                        clusterMinSize: "24px", clusterMaxSize: "60px",
-                        labelingInfo: [{ labelExpressionInfo: { expression: "Text($feature.cluster_count, '#,###')" }, symbol: { type: "text", color: "#ffffff", font: { weight: "bold", size: "12px" } }, labelPlacement: "center-center" }]
-                    });
-
+                    mapView = new MapView({ container: "mapViewDiv", map: map, center: [31.2357, 30.0444], zoom: 6, popup: { dockEnabled: true, dockOptions: { breakpoint: false, position: "top-right" } }, highlightOptions: { color: [255, 255, 0, 1], haloOpacity: 0.9, fillOpacity: 0.4 } });
+                    const createBeneficiaryRenderer = (color) => new SimpleRenderer({ symbol: new SimpleMarkerSymbol({ style: "circle", color: color, outline: { color: "white", width: 1 } }), visualVariables: [{ type: "size", field: "how_much_do_you_need", stops: [{ value: 100, size: "8px" }, { value: 5000, size: "16px" }, { value: 50000, size: "32px" }] }] });
+                    const createClusterConfig = (popupTitle) => ({ type: "cluster", clusterRadius: "80px", popupTemplate: { title: `Cluster of ${popupTitle}`, content: "This cluster represents {cluster_count} beneficiaries." }, clusterMinSize: "24px", clusterMaxSize: "60px", labelingInfo: [{ labelExpressionInfo: { expression: "Text($feature.cluster_count, '#,###')" }, symbol: { type: "text", color: "#ffffff", font: { weight: "bold", size: "12px" } }, labelPlacement: "center-center" }] });
                     neediesLayer = new FeatureLayer({ url: NEEDIES_SERVICE_URL, title: "Needies", outFields: ["*"], popupTemplate: createPopupTemplate('needy'), renderer: createBeneficiaryRenderer(NEEDY_COLOR), featureReduction: createClusterConfig("Needies") });
                     charitiesLayer = new FeatureLayer({ url: CHARITIES_SERVICE_URL, title: "Charities", outFields: ["*"], popupTemplate: createPopupTemplate('charity'), renderer: createBeneficiaryRenderer(CHARITY_COLOR), featureReduction: createClusterConfig("Charities") });
                     governorateLayer = new FeatureLayer({ url: GOVERNORATES_SERVICE_URL, opacity: 0.15, renderer: { type: "simple", symbol: { type: "simple-fill", style: "none", outline: { color: "#4e4e4e", width: 1 } } }, labelingInfo: [] });
-                    const sketchLayer = new GraphicsLayer();
-                    runtimeGraphicsLayer = new GraphicsLayer();
-
+                    const sketchLayer = new GraphicsLayer(); runtimeGraphicsLayer = new GraphicsLayer();
                     map.addMany([governorateLayer, neediesLayer, charitiesLayer, sketchLayer, runtimeGraphicsLayer]);
-
                     sketchViewModel = new SketchViewModel({ view: mapView, layer: sketchLayer, polygonSymbol: { type: "simple-fill", color: [51, 51, 204, 0.2], outline: { color: "#3333cc", width: 2 } } });
-                    mapView.on("click", handleMapClick);
-                    sketchViewModel.on("create", handleSketchCreate);
-                    loadAndProcessAllData();
+                    mapView.on("click", handleMapClick); sketchViewModel.on("create", handleSketchCreate); loadAndProcessAllData();
                 });
             }
 
@@ -288,7 +287,6 @@
                 const govPromise = governorateLayer.queryFeatures({ where: "1=1", outFields: ["name"], returnGeometry: true });
                 const neediesPromise = neediesLayer.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true });
                 const charitiesPromise = charitiesLayer.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true });
-
                 Promise.all([govPromise, neediesPromise, charitiesPromise])
                     .then(([govResults, neediesResults, charitiesResults]) => {
                         populateGovernorateFilter(govResults.features);
@@ -300,71 +298,32 @@
                             processed.governorate = containingGov ? containingGov.attributes.name : 'N/A';
                             return processed;
                         });
-                        populateFilters();
-                        performFilteringAsync();
+                        populateFilters(); performFilteringAsync();
                     })
-                    .catch(handleDataLoadError)
-                    .finally(() => showLoadingIndicator(false));
+                    .catch(handleDataLoadError).finally(() => showLoadingIndicator(false));
             }
 
             function processFeature(feature, layerType) {
-                const attrs = feature.attributes;
-                const isCharity = layerType === 'charity';
+                const attrs = feature.attributes; const isCharity = layerType === 'charity';
                 return {
                     id: `${layerType}_${attrs.objectid}`, name: isCharity ? attrs.charity_name : attrs.full_name,
                     neededAmount: attrs.how_much_do_you_need || 0, userType: isCharity ? 'Charity' : 'Needy',
                     helpFields: isCharity ? (attrs.charity_sector || 'General').split(/[,;]/).map(s => s.trim()) : [attrs.type_of_need || 'General'],
-                    email: isCharity ? attrs.enter_your_e_mail : attrs.email,
+                    email: isCharity ? attrs.enter_your_e_mail : attrs.email, creationDate: attrs.CreationDate || 0,
                     layerType: layerType, objectId: attrs.objectid, governorate: 'N/A', geometry: feature.geometry
                 };
             }
 
-            function findNearMe() {
-                if (!navigator.geolocation) { alert("Geolocation is not supported by this browser."); return; }
-                if (!geometryEngine || !Point || !Graphic || !projection) { alert("Mapping components are not ready yet. Please try again in a moment."); return; }
-                showLoadingIndicator(true, "Getting your location...");
-                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-                navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError, options);
-            }
-
-            async function handleLocationSuccess(position) {
-                try {
-                    const coords = position.coords;
-                    const userPoint = new Point({ longitude: coords.longitude, latitude: coords.latitude, spatialReference: { wkid: 4326 } });
-                    if (!projection.isLoaded()) { await projection.load(); }
-                    const projectedPoint = projection.project(userPoint, { wkid: 3857 });
-                    const bufferIn3857 = geometryEngine.buffer(projectedPoint, BufferArea, "kilometers");
-                    nearMeFilterGeometry = projection.project(bufferIn3857, { wkid: 4326 });
-                    if (userLocationGraphic) { runtimeGraphicsLayer.remove(userLocationGraphic); }
-                    userLocationGraphic = new Graphic({
-                        geometry: userPoint,
-                        symbol: { type: "simple-marker", style: "circle", color: "#007bff", size: "12px", outline: { color: [255, 255, 255], width: 2 } }
-                    });
-                    runtimeGraphicsLayer.add(userLocationGraphic);
-                    mapView.goTo(bufferIn3857.extent.expand(1.2));
-                    performFilteringAsync();
-                } catch (e) {
-                    console.error("Error in handleLocationSuccess:", e);
-                    alert("An error occurred while processing your location. Please check the console (F12) for more details.");
-                } finally {
-                    showLoadingIndicator(false);
-                }
-            }
-
-            function handleLocationError(error) {
-                showLoadingIndicator(false);
-                let message = "An unknown error occurred.";
-                switch (error.code) {
-                    case error.PERMISSION_DENIED: message = "You denied the request for Geolocation."; break;
-                    case error.POSITION_UNAVAILABLE: message = "Location information is unavailable."; break;
-                    case error.TIMEOUT: message = "The request to get user location timed out."; break;
-                }
-                alert(`Error getting location: ${message}`);
-            }
+            function findNearMe() { if (!navigator.geolocation) { alert("Geolocation is not supported by this browser."); return; } if (!geometryEngine || !Point || !Graphic || !projection) { alert("Mapping components are not ready yet. Please try again in a moment."); return; } showLoadingIndicator(true, "Getting your location..."); const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }; navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError, options); }
+            async function handleLocationSuccess(position) { try { const coords = position.coords; const userPoint = new Point({ longitude: coords.longitude, latitude: coords.latitude, spatialReference: { wkid: 4326 } }); if (!projection.isLoaded()) { await projection.load(); } const projectedPoint = projection.project(userPoint, { wkid: 3857 }); const bufferIn3857 = geometryEngine.buffer(projectedPoint, BufferArea, "kilometers"); nearMeFilterGeometry = projection.project(bufferIn3857, { wkid: 4326 }); if (userLocationGraphic) { runtimeGraphicsLayer.remove(userLocationGraphic); } userLocationGraphic = new Graphic({ geometry: userPoint, symbol: { type: "simple-marker", style: "circle", color: "#007bff", size: "12px", outline: { color: [255, 255, 255], width: 2 } } }); runtimeGraphicsLayer.add(userLocationGraphic); mapView.goTo(bufferIn3857.extent.expand(1.2)); performFilteringAsync(); } catch (e) { console.error("Error in handleLocationSuccess:", e); alert("An error occurred while processing your location. Please check the console (F12) for more details."); } finally { showLoadingIndicator(false); } }
+            function handleLocationError(error) { showLoadingIndicator(false); let message = "An unknown error occurred."; switch (error.code) { case error.PERMISSION_DENIED: message = "You denied the request for Geolocation."; break; case error.POSITION_UNAVAILABLE: message = "Location information is unavailable."; break; case error.TIMEOUT: message = "The request to get user location timed out."; break; } alert(`Error getting location: ${message}`); }
 
             function performFilteringAsync() {
                 showLoadingIndicator(true, "Applying filters...");
                 setTimeout(() => {
+                    // *** UPDATED: Call layer visibility update here ***
+                    updateLayerVisibility();
+
                     let results = [];
                     if (isSelectionModeActive) {
                         results = Array.from(selectedFeatures.values());
@@ -373,13 +332,26 @@
                         applyMapLayerFilter(spatialFilter);
                         const attributeFilters = getAttributeFilters();
                         for (const beneficiary of allBeneficiaries) {
-                            const spatialMatch = !spatialFilter || (beneficiary.geometry && geometryEngine.contains(spatialFilter, beneficiary.geometry));
-                            if (spatialMatch && checkAttributeMatch(beneficiary, attributeFilters)) {
+                            if (checkAttributeMatch(beneficiary, attributeFilters) &&
+                                (!spatialFilter || (beneficiary.geometry && geometryEngine.contains(spatialFilter, beneficiary.geometry)))) {
                                 results.push(beneficiary);
                             }
                         }
                     }
+
+                    if (currentSortColumn !== 'default') {
+                        results.sort((a, b) => {
+                            const valA = a[currentSortColumn];
+                            const valB = b[currentSortColumn];
+                            let comparison = 0;
+                            if (valA > valB) { comparison = 1; }
+                            else if (valA < valB) { comparison = -1; }
+                            return currentSortDirection === 'asc' ? comparison : -comparison;
+                        });
+                    }
+
                     filteredBeneficiaries = results;
+                    updateSortIcons();
                     currentPage = 1;
                     renderTablePage();
                     highlightSelection();
@@ -387,395 +359,41 @@
                 }, 50);
             }
 
-            function getCombinedSpatialFilter() {
-                let spatialGeometry = null;
-                const govFilter = $('#governorateFilter').val();
-                if (govFilter && governorates[govFilter]) {
-                    spatialGeometry = governorates[govFilter].geometry;
-                }
-                if (nearMeFilterGeometry) {
-                    spatialGeometry = spatialGeometry
-                        ? geometryEngine.intersect(spatialGeometry, nearMeFilterGeometry)
-                        : nearMeFilterGeometry;
-                }
-                return spatialGeometry;
-            }
+            function getCombinedSpatialFilter() { let spatialGeometry = null; const govFilter = $('#governorateFilter').val(); if (govFilter && governorates[govFilter]) { spatialGeometry = governorates[govFilter].geometry; } if (nearMeFilterGeometry) { spatialGeometry = spatialGeometry ? geometryEngine.intersect(spatialGeometry, nearMeFilterGeometry) : nearMeFilterGeometry; } return spatialGeometry; }
+            function applyMapLayerFilter(geometry) { const filter = geometry ? { geometry } : null; if (neediesLayer) neediesLayer.filter = filter; if (charitiesLayer) charitiesLayer.filter = filter; }
+            function getAttributeFilters() { return { role: $('#roleFilter').val(), field: $('#fieldFilter').val(), hideZero: $('#hideZeroNeededFilter').prop('checked'), layerType: $('input[name="layerFilter"]:checked').val(), fromDate: $('#creationFromDate').val(), toDate: $('#creationToDate').val() }; }
+            function checkAttributeMatch(beneficiary, filters) { const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType; const zeroMatch = !filters.hideZero || beneficiary.neededAmount > 0; const roleMatch = !filters.role || beneficiary.userType === filters.role; const fieldMatch = !filters.field || beneficiary.helpFields.some(f => f.trim() === filters.field); const fromDateMatch = !filters.fromDate || (beneficiary.creationDate && beneficiary.creationDate >= new Date(filters.fromDate).getTime()); const toDateMatch = !filters.toDate || (beneficiary.creationDate && beneficiary.creationDate <= new Date(filters.toDate).setHours(23, 59, 59, 999)); return layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch; }
+            function populateGovernorateFilter(govFeatures) { const select = $('#governorateFilter'); govFeatures.map(feature => feature.attributes.name).sort().forEach(govName => { governorates[govName] = { geometry: govFeatures.find(f => f.attributes.name === govName).geometry }; select.append(`<option value="${govName}">${govName}</option>`); }); }
+            function formatDate(timestamp) { if (!timestamp || timestamp === 0) return 'N/A'; return new Date(timestamp).toISOString().split('T')[0]; }
+            function updateSortIcons() { $('#beneficiariesTable .sort-icon').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort'); if (currentSortColumn !== 'default') { const iconClass = currentSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down'; $(`th[data-sort="${currentSortColumn}"] .sort-icon`).removeClass('fa-sort').addClass(iconClass); } }
 
-            function applyMapLayerFilter(geometry) {
-                const filter = geometry ? { geometry } : null;
-                if (neediesLayer) neediesLayer.filter = filter;
-                if (charitiesLayer) charitiesLayer.filter = filter;
-            }
-
-            function getAttributeFilters() {
-                return {
-                    role: $('#roleFilter').val(),
-                    field: $('#fieldFilter').val(),
-                    hideZero: $('#hideZeroNeededFilter').prop('checked'),
-                    layerType: $('input[name="layerFilter"]:checked').val()
-                };
-            }
-
-            function checkAttributeMatch(beneficiary, filters) {
-                const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType;
-                const zeroMatch = !filters.hideZero || beneficiary.neededAmount > 0;
-                const roleMatch = !filters.role || beneficiary.userType === filters.role;
-                const fieldMatch = !filters.field || beneficiary.helpFields.some(f => f.trim() === filters.field);
-                return layerMatch && zeroMatch && roleMatch && fieldMatch;
-            }
-
-            function populateGovernorateFilter(govFeatures) {
-                const select = $('#governorateFilter');
-                govFeatures.map(feature => feature.attributes.name).sort().forEach(govName => {
-                    governorates[govName] = { geometry: govFeatures.find(f => f.attributes.name === govName).geometry };
-                    select.append(`<option value="${govName}">${govName}</option>`);
-                });
-            }
-
-            function renderTablePage() {
-                const tbody = $("#beneficiariesTable tbody").empty();
-                updatePaginationControls(filteredBeneficiaries.length);
-                if (filteredBeneficiaries.length === 0) {
-                    tbody.html('<tr><td colspan="6" class="text-center p-5">No matching beneficiaries found.</td></tr>');
-                    return;
-                }
-                const startIndex = (currentPage - 1) * rowsPerPage;
-                const pageItems = filteredBeneficiaries.slice(startIndex, startIndex + rowsPerPage);
-                pageItems.forEach(b => {
-                    const fieldsHtml = b.helpFields.map(field => `<span class="badge bg-info text-dark me-1">${field.trim()}</span>`).join('');
-                    const typeBadgeColor = b.userType === 'Charity' ? CHARITY_COLOR : NEEDY_COLOR;
-                    const beneficiaryData = JSON.stringify(b, (key, value) => key === 'geometry' ? undefined : value);
-                    tbody.append(
-                        `<tr data-id="${b.id}" class="beneficiary-row">
-                            <td><input type="checkbox" class="form-check-input row-checkbox" data-id="${b.id}"></td>
-                            <td class="fw-semibold">${b.name}</td>
-                            <td class="text-end fw-bold text-danger">${formatCurrency(b.neededAmount)}</td>
-                            <td><span class="badge text-white" style="background-color: ${typeBadgeColor}; font-size: 1.1em; padding: 0.4em 0.6em;">${b.userType}</span></td>
-                            <td>${fieldsHtml}</td>
-                            <td>
-                                <div class="input-group input-group-sm">
-                                    <input type="number" class="form-control donate-amount" min="1" max="${b.neededAmount || 1}" placeholder="Amount" />
-                                    <button type="button" class="btn btn-success donate-btn" data-beneficiary='${beneficiaryData}'><i class="fas fa-heart"></i></button>
-                                </div>
-                            </td>
-                        </tr>`
-                    );
-                });
-                updateTableSelectionVisuals();
-            }
-
-            function populateFilters() {
-                const allTypes = [...new Set(allBeneficiaries.map(b => b.userType))];
-                const allFields = [...new Set(allBeneficiaries.flatMap(b => b.helpFields.map(f => f.trim())))].sort();
-                $('#roleFilter').html('<option value="">All Types</option>' + allTypes.map(r => `<option value="${r}">${r}</option>`).join(''));
-                $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join(''));
-            }
-
-            function updatePaginationControls(totalRows) {
-                const totalPages = Math.ceil(totalRows / rowsPerPage);
-                const paginationFooter = $('#paginationInfo').closest('.card-footer');
-                if (totalPages <= 1) {
-                    paginationFooter.hide();
-                    return;
-                }
-                paginationFooter.show();
-                $('#prevPageBtn').prop('disabled', currentPage === 1);
-                $('#nextPageBtn').prop('disabled', currentPage === totalPages);
-                const startRecord = (currentPage - 1) * rowsPerPage + 1;
-                const endRecord = Math.min(startRecord + rowsPerPage - 1, totalRows);
-                $('#paginationInfo').text(`Showing ${startRecord} - ${endRecord} of ${totalRows}`);
-            }
-
-            function zoomToAll() {
-                if (Extent) {
-                    const egyptExtent = new Extent({
-                        xmin: 25.0, ymin: 22.0, xmax: 36.0, ymax: 32.0,
-                        spatialReference: { wkid: 4326 }
-                    });
-                    if (mapView) {
-                        mapView.goTo(egyptExtent);
-                    }
-                }
-            }
-
-            function handleMapClick(event) {
-                if (isSketchActive) return;
-                mapView.hitTest(event).then(response => {
-                    const graphicResult = response.results.find(r => r.graphic && (r.graphic.layer || r.graphic.isAggregate));
-                    if (!graphicResult) return;
-                    const graphic = graphicResult.graphic;
-                    if (graphic.isAggregate) {
-                        mapView.goTo({ target: graphic.geometry, zoom: mapView.zoom + 2 });
-                        return;
-                    }
-                    if (graphic.layer && graphic.layer.visible && (graphic.layer.title === "Needies" || graphic.layer.title === "Charities")) {
-                        const layerType = graphic.layer.title === 'Needies' ? 'needy' : 'charity';
-                        toggleFeatureSelection(`${layerType}_${graphic.attributes.objectid}`);
-                    }
-                });
-            }
-
-            function updateSummary() {
-                const tbody = $("#donationSummary tbody");
-                tbody.empty();
-                if (donations.length === 0) {
-                    tbody.html('<tr><td colspan="4" class="text-center text-muted">No donations added yet.</td></tr>');
-                } else {
-                    donations.forEach(d => tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${formatCurrency(d.amount)}</td><td><button class="btn btn-sm btn-outline-danger remove-donation-btn" data-id="${d.id}"><i class="fas fa-trash"></i></button></td></tr>`));
-                }
-                $('#totalDonationsAmount').text(formatCurrency(donations.reduce((sum, d) => sum + d.amount, 0)));
-                updateRemaining();
-            }
-
-            function formatCurrency(value) {
-                return (value || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
-            }
-
-            function createPopupTemplate(type) {
-                const isNeedy = "needy" === type;
-                const title = isNeedy ? "{full_name}" : "{charity_name}";
-                const typeField = isNeedy ? "type_of_need" : "charity_sector";
-                const amountField = "how_much_do_you_need";
-
-                return {
-                    title: title,
-                    content: [{
-                        type: "fields",
-                        fieldInfos: [
-                            { fieldName: typeField, label: isNeedy ? "Need Type" : "Sector" },
-                            {
-                                fieldName: amountField,
-                                label: "Amount Needed",
-                                format: { digitSeparator: true, places: 2 }
-                            }
-                        ]
-                    }]
-                };
-            }
-
-            function showLoadingIndicator(show, message = "Loading Data...") {
-                const placeholder = `<tr><td colspan="6" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">${message}</p></td></tr>`;
-                if (show) {
-                    $('#beneficiariesTable tbody').html(placeholder);
-                } else {
-                    if ($('#beneficiariesTable tbody').find('.spinner-border').length > 0) {
-                        $('#beneficiariesTable tbody').empty();
-                    }
-                }
-            }
-
-            function handleDataLoadError(error) {
-                console.error("Error during data load or analysis:", error);
-                const errorMsg = 'Failed to load or process data. Please check network connection and service status.';
-                $('#beneficiariesTable tbody').html(`<tr><td colspan="6" class="text-center text-danger p-5">${errorMsg}</td></tr>`);
-            }
-
-            function toggleFeatureSelection(id) {
-                const beneficiary = allBeneficiaries.find(b => b.id === id);
-                if (!beneficiary) return;
-                if (selectedFeatures.has(id)) {
-                    selectedFeatures.delete(id);
-                } else {
-                    selectedFeatures.set(id, beneficiary);
-                }
-                updateSelectionCount();
-                updateTableSelectionVisuals();
-                highlightSelection();
-            }
-
-            function clearAllSelections() {
-                selectedFeatures.clear();
-                if (sketchViewModel) sketchViewModel.layer.removeAll();
-                if (runtimeGraphicsLayer) runtimeGraphicsLayer.removeAll();
-                isSelectionModeActive = false; // Exit selection mode
-                performFilteringAsync(); // Re-apply normal filters
-                highlightSelection();
-            }
-
-            function highlightSelection() {
-                if (highlightHandles) {
-                    highlightHandles.forEach(h => h.remove());
-                }
-                highlightHandles = [];
-                if (selectedFeatures.size === 0) return;
-                const idsByType = { needy: [], charity: [] };
-                selectedFeatures.forEach(b => idsByType[b.layerType].push(b.objectId));
-                if (idsByType.needy.length > 0 && neediesLayer.visible) {
-                    mapView.whenLayerView(neediesLayer).then(lv => { if (lv) highlightHandles.push(lv.highlight(idsByType.needy)); });
-                }
-                if (idsByType.charity.length > 0 && charitiesLayer.visible) {
-                    mapView.whenLayerView(charitiesLayer).then(lv => { if (lv) highlightHandles.push(lv.highlight(idsByType.charity)); });
-                }
-            }
-
-            function handleRowCheckboxChange() {
-                toggleFeatureSelection($(this).data("id"));
-            }
-
-            function handleSketchCreate(event) {
-                if ("complete" === event.state) {
-                    const geometry = event.graphic.geometry;
-                    sketchViewModel.layer.removeAll();
-                    toggleSketchMode(false);
-                    showLoadingIndicator(true, "Finding beneficiaries in selection...");
-
-                    // Query the layers for features within the drawn polygon
-                    const layersToQuery = getVisibleLayers();
-                    const queryPromises = layersToQuery.map(layer => layer.queryFeatures({
-                        geometry: geometry,
-                        spatialRelationship: "intersects",
-                        outFields: ["*"],
-                        returnGeometry: true
-                    }));
-
-                    Promise.all(queryPromises).then(results => {
-                        selectedFeatures.clear();
-                        results.forEach(featureSet => {
-                            featureSet.features.forEach(feature => {
-                                const processed = allBeneficiaries.find(b => b.objectId === feature.attributes.objectid && b.layerType === (feature.layer.title === 'Needies' ? 'needy' : 'charity'));
-                                if(processed) {
-                                    selectedFeatures.set(processed.id, processed);
-                                }
-                            });
-                        });
-
-                        isSelectionModeActive = true; // Activate selection mode
-                        performFilteringAsync(); // This will now only show selected features
-                        highlightSelection();
-
-                    }).catch(err => {
-                        console.error("Sketch query error:", err);
-                        showLoadingIndicator(false);
-                    });
-                }
-            }
-
-            function handleSelectAll() {
-                const isChecked = $(this).prop("checked");
-                $("#beneficiariesTable tbody tr:visible .row-checkbox").each(function () {
-                    const id = $(this).data("id");
-                    const beneficiary = filteredBeneficiaries.find(b => b.id === id);
-                    if (beneficiary) {
-                        if (isChecked) {
-                            if (!selectedFeatures.has(id)) selectedFeatures.set(id, beneficiary);
-                        } else {
-                            if (selectedFeatures.has(id)) selectedFeatures.delete(id);
-                        }
-                    }
-                });
-                updateSelectionCount();
-                updateTableSelectionVisuals();
-                highlightSelection();
-            }
-
-            function submitAllDonations() {
-                if (donations.length !== 0) {
-                    const dataToSubmit = donations.map(d => ({ Type: d.id.split("_")[0], BeneficiaryId: parseInt(d.id.split("_")[1]), Amount: d.amount }));
-                    $("#submitAllBtn").prop("disabled", true).html('<div class="spinner-border spinner-border-sm"></div> Submitting...');
-                    $.ajax({
-                        url: "/Donate/SubmitDonations", type: "POST", contentType: "application/json", data: JSON.stringify(dataToSubmit),
-                        success: res => {
-                            if (res.success) {
-                                alert("Donations recorded successfully!");
-                                location.reload();
-                            } else {
-                                alert("An error occurred: " + (res.message || "Unknown error"));
-                                $("#submitAllBtn").prop("disabled", false).html('<i class="fas fa-paper-plane"></i> Submit All Donations');
-                            }
-                        },
-                        error: xhr => {
-                            alert("A server error occurred!");
-                            console.error(xhr.responseText);
-                            $("#submitAllBtn").prop("disabled", false).html('<i class="fas fa-paper-plane"></i> Submit All Donations');
-                        }
-                    });
-                }
-            }
-
-            function handleDonateClick() {
-                const beneficiaryJson = $(this).attr("data-beneficiary");
-                const beneficiary = JSON.parse(beneficiaryJson);
-                const input = $(this).closest("tr").find(".donate-amount");
-                const amount = parseFloat(input.val());
-                const total = parseFloat($("#TotalDonation").val()) || 0;
-                const used = donations.reduce((sum, d) => sum + d.amount, 0);
-                if (!amount || amount < 1 || amount > (total - used)) {
-                    alert(`Invalid amount. Please enter a value between 1 and the remaining balance of ${formatCurrency(total - used)}.`);
-                    input.addClass("is-invalid").focus();
-                    return;
-                }
-                if (beneficiary.neededAmount > 0 && amount > beneficiary.neededAmount) {
-                    alert(`Donation cannot exceed the needed amount of ${formatCurrency(beneficiary.neededAmount)}.`);
-                    input.addClass("is-invalid").focus();
-                    return;
-                }
-                if (donations.some(d => d.id === beneficiary.id)) {
-                    alert("You have already added a donation for this beneficiary.");
-                    return;
-                }
-                input.removeClass("is-invalid");
-                donations.push({ id: beneficiary.id, name: beneficiary.name, userType: beneficiary.userType, amount: amount });
-                $(this).prop("disabled", true).html('<i class="fas fa-check"></i> Added');
-                input.prop("disabled", true);
-                updateSummary();
-            }
-
-            function handleRemoveDonation() {
-                const idToRemove = $(this).data("id");
-                donations = donations.filter(d => d.id !== idToRemove);
-                const row = $(`tr[data-id="${idToRemove}"]`);
-                row.find(".donate-btn").prop("disabled", false).html('<i class="fas fa-heart"></i>');
-                row.find(".donate-amount").prop("disabled", false);
-                updateSummary();
-            }
-
-            function updateTableSelectionVisuals() {
-                $(".row-checkbox").each(function () {
-                    $(this).prop("checked", selectedFeatures.has($(this).data("id")));
-                    $(this).closest("tr").toggleClass("table-info", selectedFeatures.has($(this).data("id")));
-                });
-                updateSelectAllCheckboxState();
-            }
-
-            function updateSelectionCount() {
-            }
-
-            function updateSelectAllCheckboxState() {
-                const allVisibleChecks = $("#beneficiariesTable tbody .row-checkbox");
-                const allVisibleChecked = allVisibleChecks.filter(":checked");
-                const selectAll = $("#selectAllCheckbox");
-                selectAll.prop("checked", allVisibleChecks.length > 0 && allVisibleChecks.length === allVisibleChecked.length);
-                selectAll.prop("indeterminate", allVisibleChecked.length > 0 && allVisibleChecked.length < allVisibleChecks.length);
-            }
-
-            function updateRemaining() {
-                const total = parseFloat($("#TotalDonation").val()) || 0;
-                const used = donations.reduce((sum, d) => sum + d.amount, 0);
-                $("#RemainingBalance").val((total - used).toFixed(2));
-                $("#submitAllBtn").prop("disabled", donations.length === 0 || (total - used) < 0 || total === 0);
-            }
-
-            function toggleSketchMode(active) {
-                isSketchActive = active;
-                const btn = $("#toggleSketchBtn");
-                if (active) {
-                    btn.removeClass("btn-outline-secondary").addClass("btn-warning").html('<i class="fas fa-times"></i> Cancel');
-                    sketchViewModel.create("polygon");
-                } else {
-                    sketchViewModel.cancel();
-                    btn.removeClass("btn-warning").addClass("btn-outline-secondary").html('<i class="fas fa-draw-polygon"></i> Multi-Select');
-                }
-            }
-
-            function getVisibleLayers() {
-                const filterValue = $('input[name="layerFilter"]:checked').val();
-                return "needy" === filterValue ? [neediesLayer] : "charity" === filterValue ? [charitiesLayer] : [neediesLayer, charitiesLayer];
-            }
-
-            function updateLayerVisibility() {
-                if (neediesLayer) neediesLayer.visible = "needy" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
-                if (charitiesLayer) charitiesLayer.visible = "charity" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
-            }
+            // ... All other functions from here on are copy-pasted for completeness ...
+            function renderTablePage() { const tbody = $("#beneficiariesTable tbody").empty(); updatePaginationControls(filteredBeneficiaries.length); if (filteredBeneficiaries.length === 0) { tbody.html('<tr><td colspan="7" class="text-center p-5">No matching beneficiaries found.</td></tr>'); return; } const startIndex = (currentPage - 1) * rowsPerPage; const pageItems = filteredBeneficiaries.slice(startIndex, startIndex + rowsPerPage); pageItems.forEach(b => { const fieldsHtml = b.helpFields.map(field => `<span class="badge bg-info text-dark me-1">${field.trim()}</span>`).join(''); const typeBadgeColor = b.userType === 'Charity' ? CHARITY_COLOR : NEEDY_COLOR; const beneficiaryData = JSON.stringify(b, (key, value) => key === 'geometry' ? undefined : value); tbody.append(`<tr data-id="${b.id}" class="beneficiary-row"><td><input type="checkbox" class="form-check-input row-checkbox" data-id="${b.id}"></td><td class="fw-semibold">${b.name}</td><td>${formatDate(b.creationDate)}</td><td class="text-end fw-bold text-danger">${formatCurrency(b.neededAmount)}</td><td><span class="badge text-white" style="background-color: ${typeBadgeColor}; font-size: 1.1em; padding: 0.4em 0.6em;">${b.userType}</span></td><td>${fieldsHtml}</td><td><div class="input-group input-group-sm"><input type="number" class="form-control donate-amount" min="1" max="${b.neededAmount || 1}" placeholder="Amount" /><button type="button" class="btn btn-success donate-btn" data-beneficiary='${beneficiaryData}'><i class="fas fa-heart"></i></button></div></td></tr>`); }); updateTableSelectionVisuals(); }
+            function populateFilters() { const allTypes = [...new Set(allBeneficiaries.map(b => b.userType))], allFields = [...new Set(allBeneficiaries.flatMap(b => b.helpFields.map(f => f.trim())))].sort(); $('#roleFilter').html('<option value="">All Types</option>' + allTypes.map(r => `<option value="${r}">${r}</option>`).join('')); $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join('')); }
+            function updatePaginationControls(totalRows) { const totalPages = Math.ceil(totalRows / rowsPerPage); const paginationFooter = $('#paginationInfo').closest('.card-footer'); if (totalPages <= 1) { paginationFooter.hide(); return; } paginationFooter.show(); $('#prevPageBtn').prop('disabled', currentPage === 1); $('#nextPageBtn').prop('disabled', currentPage === totalPages); const startRecord = (currentPage - 1) * rowsPerPage + 1; const endRecord = Math.min(startRecord + rowsPerPage - 1, totalRows); $('#paginationInfo').text(`Showing ${startRecord} - ${endRecord} of ${totalRows}`); }
+            function zoomToAll() { if (Extent) { const egyptExtent = new Extent({ xmin: 25.0, ymin: 22.0, xmax: 36.0, ymax: 32.0, spatialReference: { wkid: 4326 } }); if (mapView) { mapView.goTo(egyptExtent); } } }
+            function handleMapClick(event) { if (isSketchActive) return; mapView.hitTest(event).then(response => { const graphicResult = response.results.find(r => r.graphic && (r.graphic.layer || r.graphic.isAggregate)); if (!graphicResult) return; const graphic = graphicResult.graphic; if (graphic.isAggregate) { mapView.goTo({ target: graphic.geometry, zoom: mapView.zoom + 2 }); return; } if (graphic.layer && graphic.layer.visible && (graphic.layer.title === "Needies" || graphic.layer.title === "Charities")) { const layerType = graphic.layer.title === 'Needies' ? 'needy' : 'charity'; toggleFeatureSelection(`${layerType}_${graphic.attributes.objectid}`); } }); }
+            function updateSummary() { const tbody = $("#donationSummary tbody"); tbody.empty(); if (donations.length === 0) { tbody.html('<tr><td colspan="4" class="text-center text-muted">No donations added yet.</td></tr>'); } else { donations.forEach(d => tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${formatCurrency(d.amount)}</td><td><button class="btn btn-sm btn-outline-danger remove-donation-btn" data-id="${d.id}"><i class="fas fa-trash"></i></button></td></tr>`)); } $('#totalDonationsAmount').text(formatCurrency(donations.reduce((sum, d) => sum + d.amount, 0))); updateRemaining(); }
+            function formatCurrency(value) { return (value || 0).toLocaleString("en-US", { style: "currency", currency: "USD" }); }
+            function createPopupTemplate(type) { const isNeedy = "needy" === type; const title = isNeedy ? "{full_name}" : "{charity_name}"; const typeField = isNeedy ? "type_of_need" : "charity_sector"; const amountField = "how_much_do_you_need"; const creationDateField = "CreationDate"; return { title: title, content: [{ type: "fields", fieldInfos: [{ fieldName: typeField, label: isNeedy ? "Need Type" : "Sector" }, { fieldName: amountField, label: "Amount Needed", format: { digitSeparator: true, places: 2 } }, { fieldName: creationDateField, label: "Date Added", format: { dateFormat: "long-date-short-time" } }] }] }; }
+            function showLoadingIndicator(show, message = "Loading Data...") { const placeholder = `<tr><td colspan="7" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">${message}</p></td></tr>`; if (show) { $('#beneficiariesTable tbody').empty().html(placeholder); } else { $('#beneficiariesTable tbody').find('.spinner-border').parent().parent().remove(); } }
+            function handleDataLoadError(error) { console.error("Error during data load or analysis:", error); const errorMsg = 'Failed to load or process data. Please check network connection and service status.'; $('#beneficiariesTable tbody').html(`<tr><td colspan="7" class="text-center text-danger p-5">${errorMsg}</td></tr>`); }
+            function toggleFeatureSelection(id) { const beneficiary = allBeneficiaries.find(b => b.id === id); if (!beneficiary) return; if (selectedFeatures.has(id)) { selectedFeatures.delete(id); } else { selectedFeatures.set(id, beneficiary); } updateSelectionCount(); updateTableSelectionVisuals(); highlightSelection(); }
+            function clearAllSelections() { selectedFeatures.clear(); if (sketchViewModel) sketchViewModel.layer.removeAll(); if (runtimeGraphicsLayer) runtimeGraphicsLayer.removeAll(); isSelectionModeActive = false; performFilteringAsync(); highlightSelection(); }
+            function highlightSelection() { if (highlightHandles) { highlightHandles.forEach(h => h.remove()); } highlightHandles = []; if (selectedFeatures.size === 0) return; const idsByType = { needy: [], charity: [] }; selectedFeatures.forEach(b => idsByType[b.layerType].push(b.objectId)); if (idsByType.needy.length > 0 && neediesLayer.visible) { mapView.whenLayerView(neediesLayer).then(lv => { if (lv) highlightHandles.push(lv.highlight(idsByType.needy)); }); } if (idsByType.charity.length > 0 && charitiesLayer.visible) { mapView.whenLayerView(charitiesLayer).then(lv => { if (lv) highlightHandles.push(lv.highlight(idsByType.charity)); }); } }
+            function handleRowCheckboxChange() { toggleFeatureSelection($(this).data("id")); }
+            function handleSketchCreate(event) { if ("complete" === event.state) { const geometry = event.graphic.geometry; sketchViewModel.layer.removeAll(); toggleSketchMode(false); showLoadingIndicator(true, "Finding beneficiaries in selection..."); const layersToQuery = getVisibleLayers(); const queryPromises = layersToQuery.map(layer => layer.queryFeatures({ geometry: geometry, spatialRelationship: "intersects", outFields: ["*"], returnGeometry: true })); Promise.all(queryPromises).then(results => { selectedFeatures.clear(); results.forEach(featureSet => { featureSet.features.forEach(feature => { const processed = allBeneficiaries.find(b => b.objectId === feature.attributes.objectid && b.layerType === (feature.layer.title === 'Needies' ? 'needy' : 'charity')); if (processed) { selectedFeatures.set(processed.id, processed); } }); }); isSelectionModeActive = true; performFilteringAsync(); highlightSelection(); }).catch(err => { console.error("Sketch query error:", err); showLoadingIndicator(false); }); } }
+            function handleSelectAll() { const isChecked = $(this).prop("checked"); $("#beneficiariesTable tbody tr:visible .row-checkbox").each(function () { const id = $(this).data("id"); const beneficiary = filteredBeneficiaries.find(b => b.id === id); if (beneficiary) { if (isChecked) { if (!selectedFeatures.has(id)) selectedFeatures.set(id, beneficiary); } else { if (selectedFeatures.has(id)) selectedFeatures.delete(id); } } }); updateSelectionCount(); updateTableSelectionVisuals(); highlightSelection(); }
+            function submitAllDonations() { if (donations.length !== 0) { const dataToSubmit = donations.map(d => ({ Type: d.id.split("_")[0], BeneficiaryId: parseInt(d.id.split("_")[1]), Amount: d.amount })); $("#submitAllBtn").prop("disabled", true).html('<div class="spinner-border spinner-border-sm"></div> Submitting...'); $.ajax({ url: "/Donate/SubmitDonations", type: "POST", contentType: "application/json", data: JSON.stringify(dataToSubmit), success: res => { if (res.success) { alert("Donations recorded successfully!"); location.reload(); } else { alert("An error occurred: " + (res.message || "Unknown error")); $("#submitAllBtn").prop("disabled", false).html('<i class="fas fa-paper-plane"></i> Submit All Donations'); } }, error: xhr => { alert("A server error occurred!"); console.error(xhr.responseText); $("#submitAllBtn").prop("disabled", false).html('<i class="fas fa-paper-plane"></i> Submit All Donations'); } }); } }
+            function handleDonateClick() { const beneficiaryJson = $(this).attr("data-beneficiary"); const beneficiary = JSON.parse(beneficiaryJson); const input = $(this).closest("tr").find(".donate-amount"); const amount = parseFloat(input.val()); const total = parseFloat($("#TotalDonation").val()) || 0; const used = donations.reduce((sum, d) => sum + d.amount, 0); if (!amount || amount < 1 || amount > (total - used)) { alert(`Invalid amount. Please enter a value between 1 and the remaining balance of ${formatCurrency(total - used)}.`); input.addClass("is-invalid").focus(); return; } if (beneficiary.neededAmount > 0 && amount > beneficiary.neededAmount) { alert(`Donation cannot exceed the needed amount of ${formatCurrency(beneficiary.neededAmount)}.`); input.addClass("is-invalid").focus(); return; } if (donations.some(d => d.id === beneficiary.id)) { alert("You have already added a donation for this beneficiary."); return; } input.removeClass("is-invalid"); donations.push({ id: beneficiary.id, name: beneficiary.name, userType: beneficiary.userType, amount: amount }); $(this).prop("disabled", true).html('<i class="fas fa-check"></i> Added'); input.prop("disabled", true); updateSummary(); }
+            function handleRemoveDonation() { const idToRemove = $(this).data("id"); donations = donations.filter(d => d.id !== idToRemove); const row = $(`tr[data-id="${idToRemove}"]`); row.find(".donate-btn").prop("disabled", false).html('<i class="fas fa-heart"></i>'); row.find(".donate-amount").prop("disabled", false); updateSummary(); }
+            function updateTableSelectionVisuals() { $(".row-checkbox").each(function () { $(this).prop("checked", selectedFeatures.has($(this).data("id"))); $(this).closest("tr").toggleClass("table-info", selectedFeatures.has($(this).data("id"))); }); updateSelectAllCheckboxState(); }
+            function updateSelectionCount() { }
+            function updateSelectAllCheckboxState() { const allVisibleChecks = $("#beneficiariesTable tbody .row-checkbox"); const allVisibleChecked = allVisibleChecks.filter(":checked"); const selectAll = $("#selectAllCheckbox"); selectAll.prop("checked", allVisibleChecks.length > 0 && allVisibleChecks.length === allVisibleChecked.length); selectAll.prop("indeterminate", allVisibleChecked.length > 0 && allVisibleChecked.length < allVisibleChecks.length); }
+            function updateRemaining() { const total = parseFloat($("#TotalDonation").val()) || 0; const used = donations.reduce((sum, d) => sum + d.amount, 0); $("#RemainingBalance").val((total - used).toFixed(2)); $("#submitAllBtn").prop("disabled", donations.length === 0 || (total - used) < 0 || total === 0); }
+            function toggleSketchMode(active) { isSketchActive = active; const btn = $("#toggleSketchBtn"); if (active) { btn.removeClass("btn-outline-secondary").addClass("btn-warning").html('<i class="fas fa-times"></i> Cancel'); sketchViewModel.create("polygon"); } else { sketchViewModel.cancel(); btn.removeClass("btn-warning").addClass("btn-outline-secondary").html('<i class="fas fa-draw-polygon"></i> Multi-Select'); } }
+            function getVisibleLayers() { const filterValue = $('input[name="layerFilter"]:checked').val(); return "needy" === filterValue ? [neediesLayer] : "charity" === filterValue ? [charitiesLayer] : [neediesLayer, charitiesLayer]; }
+            function updateLayerVisibility() { if (neediesLayer) neediesLayer.visible = "needy" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val(); if (charitiesLayer) charitiesLayer.visible = "charity" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val(); }
 
         });
     </script>
