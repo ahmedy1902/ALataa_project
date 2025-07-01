@@ -4,174 +4,184 @@
 }
 <style>
     .page-wrapper {
-        transform: scale(0.67);
+        transform: scale(0.75);
         transform-origin: top center;
-        width: 100%;
+        width: 133.33%; /* زيادة العرض عشان يرجع طبيعي بعد الـ scale */
+        margin: 0 auto;
+        margin-bottom: -25%; /* تقليل المساحة تحت العنصر */
     }
 
-    body {
-        zoom: 0.8; /* أو 67% */
+    /* تأكد إن الـ container مش ياخد مساحة زيادة */
+    .main-container {
+        overflow: hidden;
     }
 </style>
-<div class="row">
-    <div class="col-lg-11 mx-auto">
-        <div class="container-70 py-4">
-            <div class="row mb-4">
-                <div class="col-md-8 mx-auto">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h3 class="mb-3 text-primary"><i class="fas fa-hand-holding-heart"></i> Make a Donation</h3>
-                            <form id="donationForm">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="TotalDonation" class="form-label">Total Amount to Donate</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input asp-for="TotalDonation" class="form-control" id="TotalDonation" type="number" min="1" step="0.01" />
+
+<br />
+<br />
+<div class="main-container">
+    <div class="row">
+        <div style="display: flex; justify-content: center; align-items: center;">
+            <div class="page-wrapper">
+                <!-- محتوى الصفحة هنا -->
+
+                <div class="row mb-4">
+                    <div class="col-md-8 mx-auto">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h3 class="mb-3 text-primary"><i class="fas fa-hand-holding-heart"></i> Make a Donation</h3>
+                                <form id="donationForm">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="TotalDonation" class="form-label">Total Amount to Donate</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input asp-for="TotalDonation" class="form-control" id="TotalDonation" type="number" min="1" step="0.01" />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Remaining Balance</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">$</span>
+                                                <input class="form-control" id="RemainingBalance" readonly />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Remaining Balance</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">$</span>
-                                            <input class="form-control" id="RemainingBalance" readonly />
-                                        </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <h4 class="mb-0"><i class="fas fa-map-marked-alt"></i> Beneficiaries Map</h4>
+                                <div class="d-flex gap-3 flex-wrap">
+                                    <div class="btn-group" role="group">
+                                        <input type="radio" class="btn-check" name="layerFilter" id="showNeedies" value="needy" checked>
+                                        <label class="btn btn-outline-danger" for="showNeedies"><i class="fas fa-users"></i> Needies</label>
+                                        <input type="radio" class="btn-check" name="layerFilter" id="showCharities" value="charity">
+                                        <label class="btn btn-outline-success" for="showCharities"><i class="fas fa-heart"></i> Charities</label>
+                                        <input type="radio" class="btn-check" name="layerFilter" id="showBoth" value="both">
+                                        <label class="btn btn-outline-primary" for="showBoth"><i class="fas fa-globe"></i> Both</label>
+                                    </div>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-info" id="findNearMeBtn" title="Find cases within 10km of your location"><i class="fas fa-location-arrow"></i> Find Near Me</button>
+                                        <button type="button" class="btn btn-outline-secondary" id="toggleSketchBtn" title="Select multiple points by drawing a shape"><i class="fas fa-draw-polygon"></i> Multi-Select</button>
+                                        <button type="button" class="btn btn-outline-info" id="zoomToAllBtn" title="Zoom to show all visible points"><i class="fas fa-expand-arrows-alt"></i> Zoom to All</button>
                                     </div>
                                 </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <h4 class="mb-0"><i class="fas fa-map-marked-alt"></i> Beneficiaries Map</h4>
-                            <div class="d-flex gap-3 flex-wrap">
-                                <div class="btn-group" role="group">
-                                    <input type="radio" class="btn-check" name="layerFilter" id="showNeedies" value="needy" checked>
-                                    <label class="btn btn-outline-danger" for="showNeedies"><i class="fas fa-users"></i> Needies</label>
-                                    <input type="radio" class="btn-check" name="layerFilter" id="showCharities" value="charity">
-                                    <label class="btn btn-outline-success" for="showCharities"><i class="fas fa-heart"></i> Charities</label>
-                                    <input type="radio" class="btn-check" name="layerFilter" id="showBoth" value="both">
-                                    <label class="btn btn-outline-primary" for="showBoth"><i class="fas fa-globe"></i> Both</label>
-                                </div>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-info" id="findNearMeBtn" title="Find cases within 10km of your location"><i class="fas fa-location-arrow"></i> Find Near Me</button>
-                                    <button type="button" class="btn btn-outline-secondary" id="toggleSketchBtn" title="Select multiple points by drawing a shape"><i class="fas fa-draw-polygon"></i> Multi-Select</button>
-                                    <button type="button" class="btn btn-outline-info" id="zoomToAllBtn" title="Zoom to show all visible points"><i class="fas fa-expand-arrows-alt"></i> Zoom to All</button>
-                                </div>
                             </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div id="mapViewDiv" style="height: 500px; width: 100%;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-                            <h4 class="mb-0"><i class="fas fa-table"></i> Beneficiaries List</h4>
-                            <div class="d-flex gap-2 flex-wrap align-items-center">
-                                <select id="governorateFilter" class="form-select form-select-sm" style="width: 160px;" title="Filter by Governorate">
-                                    <option value="">All Governorates</option>
-                                </select>
-                                <select id="roleFilter" class="form-select form-select-sm" style="width: 140px;" title="Filter by Type"></select>
-                                <select id="fieldFilter" class="form-select form-select-sm" style="width: 140px;" title="Filter by Field"></select>
-
-                                <div class="input-group input-group-sm" style="width: 280px;">
-                                    <span class="input-group-text">From</span>
-                                    <input type="date" id="creationFromDate" class="form-control" title="Filter by creation date from">
-                                    <span class="input-group-text">To</span>
-                                    <input type="date" id="creationToDate" class="form-control" title="Filter by creation date to">
-                                </div>
-
-                                <div class="form-check form-switch" title="Hide beneficiaries whose needs have been met">
-                                    <input class="form-check-input" type="checkbox" role="switch" id="hideZeroNeededFilter">
-                                    <label class="form-check-label" for="hideZeroNeededFilter">Hide Completed</label>
-                                </div>
-
-                                <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-primary" id="showAllBtn">Show All</button>
-                                    <button type="button" class="btn btn-outline-danger" id="clearSelectionBtn" title="Clear all selections"><i class="fas fa-times"></i> Clear Selections</button>
-                                </div>
-                                <a href="/Donate/ViewDonationHistory" class="btn btn-sm btn-outline-secondary"><i class="fas fa-history"></i> View History</a>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover align-middle" id="beneficiariesTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th width="5%"><input type="checkbox" id="selectAllCheckbox" title="Select/Deselect All Visible on this page"></th>
-                                            <th width="20%" class="sortable-header" data-sort="name" style="cursor: pointer;">Name <i class="sort-icon fas fa-sort"></i></th>
-                                            <th width="12%" class="sortable-header" data-sort="creationDate" style="cursor: pointer;">Date Added <i class="sort-icon fas fa-sort"></i></th>
-                                            <th width="12%" class="sortable-header" data-sort="neededAmount" style="cursor: pointer;">Needed <i class="sort-icon fas fa-sort"></i></th>
-                                            <th width="12%" class="sortable-header" data-sort="userType" style="cursor: pointer;">Type <i class="sort-icon fas fa-sort"></i></th>
-                                            <th width="14%">Fields/Sector</th>
-                                            <th width="15%">Donate</th>
-                                            <th width="10%">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr id="loadingRow"><td colspan="8" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <label for="rowsPerPage" class="form-label me-2 mb-0">Rows per page:</label>
-                                <select id="rowsPerPage" class="form-select form-select-sm d-inline-block" style="width: 75px;">
-                                    <option value="10">10</option>
-                                    <option value="25" selected>25</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
-                            </div>
-                            <div id="paginationInfo" class="text-muted"></div>
-                            <div class="btn-group">
-                                <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn" disabled><i class="fas fa-arrow-left"></i> Previous</button>
-                                <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn" disabled>Next <i class="fas fa-arrow-right"></i></button>
+                            <div class="card-body p-0">
+                                <div id="mapViewDiv" style="height: 500px; width: 100%;"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm border-primary">
-                        <div class="card-header bg-primary text-white">
-                            <h4 class="mb-0"><i class="fas fa-clipboard-list"></i> Donation Summary</h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped" id="donationSummary">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Amount</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <h4 class="mb-0"><i class="fas fa-table"></i> Beneficiaries List</h4>
+                                <div class="d-flex gap-2 flex-wrap align-items-center">
+                                    <select id="governorateFilter" class="form-select form-select-sm" style="width: 160px;" title="Filter by Governorate">
+                                        <option value="">All Governorates</option>
+                                    </select>
+                                    <select id="roleFilter" class="form-select form-select-sm" style="width: 140px;" title="Filter by Type"></select>
+                                    <select id="fieldFilter" class="form-select form-select-sm" style="width: 140px;" title="Filter by Field"></select>
+
+                                    <div class="input-group input-group-sm" style="width: 280px;">
+                                        <span class="input-group-text">From</span>
+                                        <input type="date" id="creationFromDate" class="form-control" title="Filter by creation date from">
+                                        <span class="input-group-text">To</span>
+                                        <input type="date" id="creationToDate" class="form-control" title="Filter by creation date to">
+                                    </div>
+
+                                    <div class="form-check form-switch" title="Hide beneficiaries whose needs have been met">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="hideZeroNeededFilter">
+                                        <label class="form-check-label" for="hideZeroNeededFilter">Hide Completed</label>
+                                    </div>
+
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" id="showAllBtn">Show All</button>
+                                        <button type="button" class="btn btn-outline-danger" id="clearSelectionBtn" title="Clear all selections"><i class="fas fa-times"></i> Clear Selections</button>
+                                    </div>
+                                    <a href="/Donate/ViewDonationHistory" class="btn btn-sm btn-outline-secondary"><i class="fas fa-history"></i> View History</a>
+                                </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover align-middle" id="beneficiariesTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="5%"><input type="checkbox" id="selectAllCheckbox" title="Select/Deselect All Visible on this page"></th>
+                                                <th width="20%" class="sortable-header" data-sort="name" style="cursor: pointer;">Name <i class="sort-icon fas fa-sort"></i></th>
+                                                <th width="12%" class="sortable-header" data-sort="creationDate" style="cursor: pointer;">Date Added <i class="sort-icon fas fa-sort"></i></th>
+                                                <th width="12%" class="sortable-header" data-sort="neededAmount" style="cursor: pointer;">Needed <i class="sort-icon fas fa-sort"></i></th>
+                                                <th width="12%" class="sortable-header" data-sort="userType" style="cursor: pointer;">Type <i class="sort-icon fas fa-sort"></i></th>
+                                                <th width="14%">Fields/Sector</th>
+                                                <th width="15%">Donate</th>
+                                                <th width="10%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr id="loadingRow"><td colspan="8" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Loading Data...</p></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
-                                    <h5 class="mb-0">Total Donations: <span id="totalDonationsAmount" class="text-success fw-bold">$0.00</span></h5>
+                                    <label for="rowsPerPage" class="form-label me-2 mb-0">Rows per page:</label>
+                                    <select id="rowsPerPage" class="form-select form-select-sm d-inline-block" style="width: 75px;">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
                                 </div>
-                                <div>
-                                    <button class="btn btn-primary btn-lg" id="submitAllBtn" disabled>
-                                        <i class="fas fa-paper-plane"></i> Submit All Donations
-                                    </button>
+                                <div id="paginationInfo" class="text-muted"></div>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn" disabled><i class="fas fa-arrow-left"></i> Previous</button>
+                                    <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn" disabled>Next <i class="fas fa-arrow-right"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="mb-0"><i class="fas fa-clipboard-list"></i> Donation Summary</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="donationSummary">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Amount</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div>
+                                        <h5 class="mb-0">Total Donations: <span id="totalDonationsAmount" class="text-success fw-bold">$0.00</span></h5>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-primary btn-lg" id="submitAllBtn" disabled>
+                                            <i class="fas fa-paper-plane"></i> Submit All Donations
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -181,9 +191,6 @@
         </div>
     </div>
 </div>
-<br>
-<br>
-<br>
 
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
