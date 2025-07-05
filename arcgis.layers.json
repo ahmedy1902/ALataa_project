@@ -1,0 +1,7 @@
+{
+  "ArcGisLayers": {
+    "Needies": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0",
+    "Charities": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0",
+    "Governorates": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/EGY_PROV/FeatureServer/22"
+  }
+}
