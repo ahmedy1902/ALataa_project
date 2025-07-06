@@ -1,8 +1,9 @@
+﻿using Accounts.Models;
+using Accounts.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Accounts.Models;
-using Accounts.Services;
-
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 namespace Accounts
 {
     public class Program
@@ -10,7 +11,7 @@ namespace Accounts
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            
+
             // Add logging
             builder.Services.AddLogging(logging =>
             {
@@ -20,10 +21,13 @@ namespace Accounts
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
-            builder.Services.AddDbContext<AccountContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+            builder.Services.AddRazorPages();
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            builder.Services.AddDbContext<AccountContext>(options => // تأكد من أن اسم الـ DbContext صحيح
+                options.UseSqlServer(connectionString));
+
             builder.Services.AddIdentity<IdentityUser, IdentityRole>()
-                .AddEntityFrameworkStores<AccountContext>()
+                .AddEntityFrameworkStores<AccountContext>() // تأكد من أن اسم الـ DbContext صحيح
                 .AddDefaultTokenProviders();
 
             builder.Services.Configure<IdentityOptions>(options =>
@@ -35,9 +39,17 @@ namespace Accounts
                 options.Password.RequiredLength = 6;
             });
 
-            // Add ArcGisService with HttpClient and logging
+            // 💡 --- التعديلات المطلوبة هنا --- 💡
+
+            // 1. تسجيل كلاس الإعدادات لقرائته من appsettings/secrets.json
+            builder.Services.Configure<ArcGisSettings>(builder.Configuration.GetSection("ArcGisSettings"));
+
+            // 2. تسجيل ArcGisService مع HttpClient (هذا السطر كافٍ ويقوم بكل شيء)
             builder.Services.AddHttpClient<ArcGisService>();
-            builder.Services.AddScoped<ArcGisService>();
+
+            // ❌ السطر المكرر الذي يجب حذفه: builder.Services.AddScoped<ArcGisService>();
+
+            // --- نهاية التعديلات ---
 
             var app = builder.Build();
 
@@ -45,17 +57,22 @@ namespace Accounts
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
+                app.UseHsts();
             }
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseRouting();
 
+            // UseAuthentication must come before UseAuthorization
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
+
+            app.MapRazorPages(); // تأكد من وجود هذا السطر إذا كنت تستخدم صفحات Identity
 
             app.Run();
         }

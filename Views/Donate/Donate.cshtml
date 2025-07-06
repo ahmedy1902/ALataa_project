@@ -199,7 +199,6 @@
 
     <script>
         $(document).ready(function () {
-
             let donations = [], mapView, neediesLayer, charitiesLayer, sketchViewModel, governorateLayer;
             let highlightHandles = [];
             let selectedFeatures = new Map();
@@ -217,17 +216,21 @@
             let currentSortColumn = 'default';
             let currentSortDirection = 'asc';
 
-            const BufferArea = 10;
-            const NEEDIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a/FeatureServer/0";
-            const CHARITIES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea/FeatureServer/0";
-            const GOVERNORATES_SERVICE_URL = "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/EGY_PROV/FeatureServer/22";
+            // 💡 الحصول على القيم من الـ Controller بدلاً من الثوابت
+            const NEEDIES_SERVICE_URL = "@ViewData["NeediesUrl"]";
+            const CHARITIES_SERVICE_URL = "@ViewData["CharitiesUrl"]";
+            const GOVERNORATES_SERVICE_URL = "@ViewData["GovernoratesUrl"]";
+            const DONORS_SERVICE_URL = "@ViewData["DonorsUrl"]";
+            const DONATIONS_LAYER_URL = "@ViewData["DonationsLayerUrl"]";
+            const NEEDY_COLOR = "@ViewData["NeedyColor"]";
+            const CHARITY_COLOR = "@ViewData["CharityColor"]";
+            const BufferArea = @ViewData["BufferArea"];
 
-            const NEEDY_COLOR = "#dc3545";
-            const CHARITY_COLOR = "#198754";
+            // 💡 الحصول على إحداثيات مصر من الـ Controller
+            const EgyptExtent = @Html.Raw(Json.Serialize(ViewData["EgyptExtent"]));
 
             initializeMap();
             bindEvents();
-
             function bindEvents() {
                 $(document).on("input", "#TotalDonation", updateRemaining);
                 $(document).on("click", ".donate-btn", handleDonateClick);
