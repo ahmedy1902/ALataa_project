@@ -48,45 +48,16 @@ public class AccountController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterModel model)
     {
-        // Role-based validation
-        if (model.Role == "Charity")
-        {
-            if (string.IsNullOrWhiteSpace(model.CharityName))
-                ModelState.AddModelError("CharityName", "Charity name is required.");
-            if (model.CharitySector == null || !model.CharitySector.Any())
-                ModelState.AddModelError("CharitySector", "Charity sector is required.");
-            if (string.IsNullOrWhiteSpace(model.CasesSponsored))
-                ModelState.AddModelError("CasesSponsored", "Number of cases sponsored is required.");
-            if (!model.CharityNeededAmount.HasValue || model.CharityNeededAmount <= 0)
-                ModelState.AddModelError("CharityNeededAmount", "Needed amount is required for charities.");
-        }
-        else if (model.Role == "Donor")
-        {
-            if (string.IsNullOrWhiteSpace(model.FullName))
-                ModelState.AddModelError("FullName", "Full name is required for donors.");
-            if (string.IsNullOrWhiteSpace(model.TypeOfDonation))
-                ModelState.AddModelError("TypeOfDonation", "Type of donation is required for donors.");
-            if (!model.DonationAmountInEgp.HasValue || model.DonationAmountInEgp <= 0)
-                ModelState.AddModelError("DonationAmountInEgp", "Donation amount is required for donors.");
-        }
-
         if (!ModelState.IsValid)
         {
             return View(model);
         }
 
-        // Create Identity user
-        var user = new IdentityUser
-        {
-            UserName = model.Email,
-            Email = model.Email
-        };
-
+        var user = new IdentityUser { UserName = model.Email, Email = model.Email };
         var result = await _userManager.CreateAsync(user, model.Password);
 
         if (result.Succeeded)
         {
-            // Add user to selected role
             if (!string.IsNullOrEmpty(model.Role))
             {
                 if (!await _roleManager.RoleExistsAsync(model.Role))
@@ -95,96 +66,23 @@ public class AccountController : Controller
                 await _userManager.AddToRoleAsync(user, model.Role);
             }
 
-            // Handle role-specific data
+            // 💡 --- تم استدعاء الخدمة هنا بدلاً من الكود المعقد ---
+            bool arcGisSuccess = true; // Assume success for roles without ArcGIS data
             if (model.Role == "Charity")
             {
-                var charitySectorStr = model.CharitySector != null ? string.Join(",", model.CharitySector) : string.Empty;
-                var registrationDate = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-                var feature = new Dictionary<string, object>
-                {
-                    ["attributes"] = new Dictionary<string, object>
-                    {
-                        ["charity_name"] = model.CharityName,
-                        ["charity_sector"] = charitySectorStr,
-                        ["field_9"] = model.CasesSponsored,
-                        ["field_10"] = model.MonthlyDonation,
-                        ["how_much_do_you_need"] = model.CharityNeededAmount,
-                        ["enter_your_e_mail"] = model.Email,
-                        ["registration_date"] = registrationDate
-                    },
-                    ["geometry"] = new Dictionary<string, object>
-                    {
-                        ["x"] = model.Longitude ?? 0,
-                        ["y"] = model.Latitude ?? 0,
-                        ["spatialReference"] = new Dictionary<string, object> { ["wkid"] = 4326 }
-                    }
-                };
-
-                var featuresList = new List<object> { feature };
-                var form = new List<KeyValuePair<string, string>>
-                {
-                    new KeyValuePair<string, string>("features", System.Text.Json.JsonSerializer.Serialize(featuresList)),
-                    new KeyValuePair<string, string>("f", "json"),
-                    new KeyValuePair<string, string>("rollbackOnFailure", "false")
-                };
-
-                using var httpClient = new System.Net.Http.HttpClient();
-                var content = new System.Net.Http.FormUrlEncodedContent(form);
-                var response = await httpClient.PostAsync($"{_arcGisSettings.CharitiesServiceUrl}/addFeatures", content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"Failed to submit charity data to ArcGIS: {response.StatusCode}");
-                    ModelState.AddModelError("RegisterError", "Failed to submit to ArcGIS Feature Layer.");
-                    return View(model);
-                }
+                arcGisSuccess = await _arcGisService.SendCharityDataAsync(model);
             }
             else if (model.Role == "Donor")
             {
-                string preferredAidCategoryStr = string.Empty;
-                if (model.PreferredAidCategory != null && model.PreferredAidCategory.Any())
-                {
-                    preferredAidCategoryStr = string.Join(",", model.PreferredAidCategory.Select(cat =>
-                        cat.Replace(" ", "_").Replace("/", "_/_")));
-                }
+                arcGisSuccess = await _arcGisService.SendDonorDataAsync(model);
+            }
 
-                var donorFeature = new Dictionary<string, object>
-                {
-                    ["attributes"] = new Dictionary<string, object>
-                    {
-                        ["full_name"] = model.FullName ?? string.Empty,
-                        ["type_of_donation"] = model.TypeOfDonation ?? string.Empty,
-                        ["donation_amount_in_egp"] = model.DonationAmountInEgp ?? 0,
-                        ["preferred_aid_category"] = preferredAidCategoryStr,
-                        ["who_would_you_like_to_donate_to"] = model.WhoWouldYouLikeToDonateTo ?? string.Empty,
-                        ["enter_your_e_mail"] = model.Email
-                    },
-                    ["geometry"] = new Dictionary<string, object>
-                    {
-                        ["x"] = model.Longitude ?? 0,
-                        ["y"] = model.Latitude ?? 0,
-                        ["spatialReference"] = new Dictionary<string, object> { ["wkid"] = 4326 }
-                    }
-                };
-
-                var featuresList = new List<object> { donorFeature };
-                var form = new List<KeyValuePair<string, string>>
-                {
-                    new KeyValuePair<string, string>("features", System.Text.Json.JsonSerializer.Serialize(featuresList)),
-                    new KeyValuePair<string, string>("f", "json"),
-                    new KeyValuePair<string, string>("rollbackOnFailure", "false")
-                };
-
-                using var httpClient = new System.Net.Http.HttpClient();
-                var content = new System.Net.Http.FormUrlEncodedContent(form);
-                var response = await httpClient.PostAsync($"{_arcGisSettings.DonorsServiceUrl}/addFeatures", content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning($"Failed to submit donor data to ArcGIS: {response.StatusCode}");
-                    // Continue with registration even if ArcGIS fails for donors
-                }
+            if (!arcGisSuccess)
+            {
+                _logger.LogWarning("User '{email}' was created, but failed to submit profile data to ArcGIS.", model.Email);
+                // يمكنك إلغاء تسجيل المستخدم أو إظهار رسالة خطأ للمستخدم هنا
+                ModelState.AddModelError("", "Your account was created, but we couldn't save your profile details to the map. Please contact support.");
+                return View(model);
             }
 
             return RedirectToAction("Login", "Account");
@@ -192,12 +90,10 @@ public class AccountController : Controller
 
         foreach (var error in result.Errors)
         {
-            ModelState.AddModelError("RegisterError", error.Description);
+            ModelState.AddModelError(string.Empty, error.Description);
         }
-
         return View(model);
     }
-
     // ✅ Login - GET
     [HttpGet]
     [AllowAnonymous]
@@ -371,4 +267,5 @@ public class AccountController : Controller
             UserType = b.UserType
         }).ToList();
     }
+
 }

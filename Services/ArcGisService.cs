@@ -402,51 +402,6 @@ namespace Accounts.Services
             return response.IsSuccessStatusCode && responseContent.Contains("addResults");
         }
 
-        // Send charity registration data to ArcGIS Feature Layer (overload for RegisterModel)
-        public async Task<bool> SendCharityDataAsync(RegisterModel model)
-        {
-            try
-            {
-                // تحويل CharitySector إلى نص مفصول بفواصل إذا كانت قائمة
-                string charitySectorStr = model.CharitySector is List<string> list ? string.Join(",", list) : (model.CharitySector?.ToString() ?? string.Empty);
-                var registrationDate = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var payload = new
-                {
-                    features = new[]
-                    {
-                        new
-                        {
-                            attributes = new
-                            {
-                                charity_name = model.CharityName ?? "",
-                                charity_sector = charitySectorStr,
-                                field_9 = model.CasesSponsored ?? "",
-                                field_10 = model.MonthlyDonation ?? "",
-                                how_much_do_you_need = model.CharityNeededAmount ?? 0,
-                                enter_your_e_mail = model.Email,
-                                registration_date = registrationDate
-                            },
-                            geometry = new
-                            {
-                                x = model.Longitude ?? 0,
-                                y = model.Latitude ?? 0,
-                                spatialReference = new { wkid = 4326 }
-                            }
-                        }
-                    },
-                    f = "json"
-                };
-                var json = JsonSerializer.Serialize(payload);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _client.PostAsync($"{_settings.CharitiesServiceUrl}/addFeatures", content);
-                return response.IsSuccessStatusCode;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error sending charity data for email: {Email}", model.Email);
-                throw;
-            }
-        }
 
         public async Task<bool> UpdateNeedyByEmailAsync(string email, double newNeededAmount)
         {
@@ -460,6 +415,77 @@ namespace Accounts.Services
             var charity = await GetCharityByEmailAsync(email);
             if (charity?.objectid == null) return false;
             return await UpdateCharityNeededAmountAsync(charity.objectid.Value, newNeededAmount);
+        }
+        // 💡 أضف هذه الدوال الجديدة داخل ملف ArcGisService.cs
+
+        public async Task<bool> SendCharityDataAsync(RegisterModel model)
+        {
+            var url = $"{_settings.CharitiesServiceUrl}/addFeatures";
+            string charitySectorStr = model.CharitySector != null ? string.Join(",", model.CharitySector) : "";
+
+            var attributes = new Dictionary<string, object>
+    {
+        { "charity_name", model.CharityName ?? "" },
+        { "charity_sector", charitySectorStr },
+        { "field_9", model.CasesSponsored ?? "" }, // تأكد من أن أسماء الحقول تطابق ما في ArcGIS
+        { "field_10", model.MonthlyDonation ?? "" },
+        { "how_much_do_you_need", model.CharityNeededAmount ?? 0 },
+        { "enter_your_e_mail", model.Email }
+    };
+
+            return await AddFeatureAsync(url, attributes, model.Latitude, model.Longitude);
+        }
+
+        public async Task<bool> SendDonorDataAsync(RegisterModel model)
+        {
+            var url = $"{_settings.DonorsServiceUrl}/addFeatures";
+            string preferredAidCategoryStr = model.PreferredAidCategory != null ? string.Join(",", model.PreferredAidCategory) : "";
+
+            var attributes = new Dictionary<string, object>
+    {
+        { "full_name", model.FullName ?? "" },
+        { "type_of_donation", model.TypeOfDonation ?? "" },
+        { "donation_amount_in_egp", model.DonationAmountInEgp ?? 0 },
+        { "preferred_aid_category", preferredAidCategoryStr },
+        { "who_would_you_like_to_donate_to", model.WhoWouldYouLikeToDonateTo ?? "" },
+        { "enter_your_e_mail", model.Email }
+    };
+
+            return await AddFeatureAsync(url, attributes, model.Latitude, model.Longitude);
+        }
+
+        // دالة مساعدة عامة لإضافة البيانات لتجنب تكرار الكود
+        private async Task<bool> AddFeatureAsync(string serviceUrl, Dictionary<string, object> attributes, double? latitude, double? longitude)
+        {
+            var feature = new
+            {
+                attributes,
+                geometry = new { x = longitude ?? 0, y = latitude ?? 0, spatialReference = new { wkid = 4326 } }
+            };
+            var featuresList = new List<object> { feature };
+            var featuresJson = JsonSerializer.Serialize(featuresList);
+            var content = new FormUrlEncodedContent(new[] {
+        new KeyValuePair<string, string>("features", featuresJson),
+        new KeyValuePair<string, string>("f", "json")
+    });
+
+            try
+            {
+                var response = await _client.PostAsync(serviceUrl, content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode || responseContent.Contains("error"))
+                {
+                    _logger?.LogError("ArcGIS AddFeature Failed: {response}", responseContent);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Exception in AddFeatureAsync for URL: {url}", serviceUrl);
+                return false;
+            }
         }
     }
 

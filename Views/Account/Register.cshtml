@@ -261,35 +261,13 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
+        // 💡 تم حذف كل كود الـ AJAX لأن الخادم يقوم بكل شيء الآن
         $(document).ready(function () {
             getLocation();
             toggleRoleFields();
-
-            $('#roleSelect').on('change', function () {
-                toggleRoleFields();
-            });
-
-            $('#registerForm').on('submit', function (e) {
-                const role = $('#roleSelect').val();
-
-                // For Beneficiary role, prevent form submission and redirect to external link
-                if (role === 'Beneficiary') {
-                    e.preventDefault();
-                    window.open('https://arcg.is/1Pj9nH2', '_blank');
-                    return false;
-                }
-
-                // For Charity role, handle special submission logic
-                if (role === 'Charity') {
-                    e.preventDefault();
-                    handleCharityRegistration();
-                    return false;
-                }
-
-                // For other roles (Donor), the form will submit normally
-            });
+            $('#roleSelect').on('change', toggleRoleFields);
         });
 
         function getLocation() {
@@ -304,82 +282,26 @@
                     function (error) {
                         $('#gpsLoading').hide();
                         console.warn('Geolocation error:', error.message);
-                        // Fallback to a default location like Cairo
+                        // Fallback to a default location
                         $('#latitude').val(30.0444);
                         $('#longitude').val(31.2357);
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+                    }
                 );
             } else {
+                console.warn('Geolocation not supported');
                 $('#latitude').val(30.0444);
                 $('#longitude').val(31.2357);
-                console.warn('Geolocation not supported');
             }
         }
 
         function toggleRoleFields() {
             const role = $('#roleSelect').val();
-            $('.role-fields').hide(); // Hide all role-specific fields first
-
+            $('.role-fields').hide();
             if (role === 'Donor') {
                 $('#donorFields').slideDown();
-                $('#submitBtn').html('<i class="fas fa-user-plus"></i> Register as Donor');
             } else if (role === 'Charity') {
                 $('#charityFields').slideDown();
-                $('#submitBtn').html('<i class="fas fa-user-plus"></i> Register as Charity');
-            } else if (role === 'Beneficiary') {
-                $('#beneficiaryFields').slideDown();
-                $('#submitBtn').html('<i class="fas fa-external-link-alt"></i> Continue to Beneficiary Registration');
-            } else {
-                $('#submitBtn').html('<i class="fas fa-user-plus"></i> Register');
             }
-        }
-
-        function handleCharityRegistration() {
-            $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Submitting...');
-
-            setTimeout(function () {
-                const charityData = {
-                    attributes: {
-                        charity_name: $('input[name="CharityName"]').val(),
-                        charity_sector: $('select[name="CharitySector"]').val(),
-                        field_9: $('select[name="CasesSponsored"]').val(),
-                        field_10: $('select[name="MonthlyDonation"]').val(),
-                        how_much_do_you_need: parseFloat($('input[name="CharityNeededAmount"]').val()),
-                        enter_your_e_mail: $('input[name="Email"]').val(),
-                        registration_date: Date.now()
-                    },
-                    geometry: {
-                        x: parseFloat($('#longitude').val()),
-                        y: parseFloat($('#latitude').val()),
-                        spatialReference: { wkid: 4326 }
-                    }
-                };
-
-                $.ajax({
-                    url: 'https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0/addFeatures',
-                    type: 'POST',
-                    data: {
-                        f: 'json',
-                        features: JSON.stringify([charityData]),
-                        rollbackOnFailure: false
-                    },
-                    success: function (response) {
-                        console.log('Charity data sent successfully:', response);
-                        // Now submit the form normally for user creation
-                        $('#registerForm').off('submit').submit();
-                        $('#successAlert').show();
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Failed to send charity data:', error);
-                        $('#submitBtn').prop('disabled', false).html('<i class="fas fa-user-plus"></i> Register as Charity');
-
-                        // Show error message
-                        const validationSummary = $('[asp-validation-summary="All"]');
-                        validationSummary.html('<ul><li>Failed to submit charity data to external service. Please try again.</li></ul>').show();
-                    }
-                });
-            }, 1000);
         }
     </script>
 }
