@@ -261,7 +261,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script>
         $(document).ready(function () {
             getLocation();
@@ -271,15 +271,24 @@
                 toggleRoleFields();
             });
 
-            // This event listener remains unchanged functionally
             $('#registerForm').on('submit', function (e) {
                 const role = $('#roleSelect').val();
+
+                // For Beneficiary role, prevent form submission and redirect to external link
+                if (role === 'Beneficiary') {
+                    e.preventDefault();
+                    window.open('https://arcg.is/1Pj9nH2', '_blank');
+                    return false;
+                }
+
+                // For Charity role, handle special submission logic
                 if (role === 'Charity') {
-                    // Prevent default form submission to handle via AJAX
                     e.preventDefault();
                     handleCharityRegistration();
+                    return false;
                 }
-                // For other roles, the form will submit normally.
+
+                // For other roles (Donor), the form will submit normally
             });
         });
 
@@ -314,17 +323,19 @@
 
             if (role === 'Donor') {
                 $('#donorFields').slideDown();
+                $('#submitBtn').html('<i class="fas fa-user-plus"></i> Register as Donor');
             } else if (role === 'Charity') {
                 $('#charityFields').slideDown();
+                $('#submitBtn').html('<i class="fas fa-user-plus"></i> Register as Charity');
+            } else if (role === 'Beneficiary') {
+                $('#beneficiaryFields').slideDown();
+                $('#submitBtn').html('<i class="fas fa-external-link-alt"></i> Continue to Beneficiary Registration');
+            } else {
+                $('#submitBtn').html('<i class="fas fa-user-plus"></i> Register');
             }
-            // Add else if for 'Beneficiary' if you create a 'beneficiaryFields' div
         }
 
         function handleCharityRegistration() {
-            // NOTE: This function's internal logic is unchanged as per your request.
-            // It still submits the data to your ArcGIS service.
-            // We only prevent the form's default submit action for this case.
-
             $('#submitBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Submitting...');
 
             setTimeout(function () {
@@ -335,7 +346,8 @@
                         field_9: $('select[name="CasesSponsored"]').val(),
                         field_10: $('select[name="MonthlyDonation"]').val(),
                         how_much_do_you_need: parseFloat($('input[name="CharityNeededAmount"]').val()),
-                        enter_your_e_mail: $('input[name="Email"]').val()
+                        enter_your_e_mail: $('input[name="Email"]').val(),
+                        registration_date: Date.now()
                     },
                     geometry: {
                         x: parseFloat($('#longitude').val()),
@@ -349,25 +361,25 @@
                     type: 'POST',
                     data: {
                         f: 'json',
-                        features: JSON.stringify([charityData])
+                        features: JSON.stringify([charityData]),
+                        rollbackOnFailure: false
                     },
                     success: function (response) {
                         console.log('Charity data sent successfully:', response);
-                        // Now submit the rest of the form to your server for user creation
-                        // We remove the AJAX handler to prevent an infinite loop and submit natively
+                        // Now submit the form normally for user creation
                         $('#registerForm').off('submit').submit();
                         $('#successAlert').show();
                     },
                     error: function (xhr, status, error) {
                         console.error('Failed to send charity data:', error);
-                        // Re-enable button and show an error if ArcGIS submission fails
-                        $('#submitBtn').prop('disabled', false).html('<i class="fas fa-user-plus"></i> Register');
-                        // Optionally show a specific error message to the user
+                        $('#submitBtn').prop('disabled', false).html('<i class="fas fa-user-plus"></i> Register as Charity');
+
+                        // Show error message
                         const validationSummary = $('[asp-validation-summary="All"]');
-                        validationSummary.html('<ul><li>Failed to submit charity location data. Please try again.</li></ul>').show();
+                        validationSummary.html('<ul><li>Failed to submit charity data to external service. Please try again.</li></ul>').show();
                     }
                 });
-            }, 1000); // Small delay for UX
+            }, 1000);
         }
     </script>
 }

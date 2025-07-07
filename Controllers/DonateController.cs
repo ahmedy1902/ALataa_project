@@ -33,7 +33,6 @@ public class DonateController : Controller
         ViewData["DonorsUrl"] = _arcGisSettings.DonorsServiceUrl;
         ViewData["DonationsLayerUrl"] = _arcGisSettings.DonationsLayerUrl;
 
-        // 💡 تمرير إحداثيات مصر بناءً على طلبك المحفوظ
         ViewData["EgyptExtent"] = new
         {
             xmin = 25.0,
