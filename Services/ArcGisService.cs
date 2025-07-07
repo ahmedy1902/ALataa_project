@@ -416,7 +416,6 @@ namespace Accounts.Services
             if (charity?.objectid == null) return false;
             return await UpdateCharityNeededAmountAsync(charity.objectid.Value, newNeededAmount);
         }
-        // 💡 أضف هذه الدوال الجديدة داخل ملف ArcGisService.cs
 
         public async Task<bool> SendCharityDataAsync(RegisterModel model)
         {
@@ -427,7 +426,7 @@ namespace Accounts.Services
     {
         { "charity_name", model.CharityName ?? "" },
         { "charity_sector", charitySectorStr },
-        { "field_9", model.CasesSponsored ?? "" }, // تأكد من أن أسماء الحقول تطابق ما في ArcGIS
+        { "field_9", model.CasesSponsored ?? "" }, 
         { "field_10", model.MonthlyDonation ?? "" },
         { "how_much_do_you_need", model.CharityNeededAmount ?? 0 },
         { "enter_your_e_mail", model.Email }

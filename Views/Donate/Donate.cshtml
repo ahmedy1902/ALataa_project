@@ -8,7 +8,7 @@
         transform-origin: top center;
         width: 133.33%;
         margin: 0 auto;
-        margin-bottom: -25%; 
+        margin-bottom: -25%;
     }
 
     .main-container {
@@ -22,8 +22,6 @@
     <div class="row">
         <div style="display: flex; justify-content: center; align-items: center;">
             <div class="page-wrapper">
-                <!-- محتوى الصفحة هنا -->
-
                 <div class="row mb-4">
                     <div class="col-md-8 mx-auto">
                         <div class="card shadow-sm">
@@ -86,6 +84,11 @@
                             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                                 <h4 class="mb-0"><i class="fas fa-table"></i> Beneficiaries List</h4>
                                 <div class="d-flex gap-2 flex-wrap align-items-center">
+                                    <div class="input-group input-group-sm" style="width: 200px;">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="text" id="nameSearch" class="form-control" placeholder="Search by name...">
+                                    </div>
+
                                     <select id="governorateFilter" class="form-select form-select-sm" style="width: 160px;" title="Filter by Governorate">
                                         <option value="">All Governorates</option>
                                     </select>
@@ -216,6 +219,9 @@
             let currentSortColumn = 'default';
             let currentSortDirection = 'asc';
 
+            // 💡 متغير لتأخير تنفيذ البحث أثناء الكتابة
+            let searchTimeout = null;
+
             // 💡 الحصول على القيم من الـ Controller بدلاً من الثوابت
             const NEEDIES_SERVICE_URL = "@ViewData["NeediesUrl"]";
             const CHARITIES_SERVICE_URL = "@ViewData["CharitiesUrl"]";
@@ -237,12 +243,23 @@
                 $(document).on("click", ".remove-donation-btn", handleRemoveDonation);
                 $('#submitAllBtn').on("click", submitAllDonations);
 
+                // 💡 ربط حدث البحث بالاسم مع تأخير بسيط لتحسين الأداء
+                $('#nameSearch').on('keyup', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        isSelectionModeActive = false;
+                        performFilteringAsync();
+                    }, 300); // 300ms delay
+                });
+
                 $('#governorateFilter, #roleFilter, #fieldFilter, #hideZeroNeededFilter, input[name="layerFilter"], #creationFromDate, #creationToDate').on('change', () => {
                     isSelectionModeActive = false;
                     performFilteringAsync();
                 });
 
                 $('#showAllBtn').on('click', function () {
+                    // 💡 مسح حقل البحث بالاسم عند الضغط على "Show All"
+                    $('#nameSearch').val('');
                     $('#governorateFilter, #roleFilter, #fieldFilter, #creationFromDate, #creationToDate').val('');
                     $('#hideZeroNeededFilter').prop('checked', false);
                     isSelectionModeActive = false;
@@ -314,6 +331,8 @@
                 });
             }
 
+            // ... (باقي الدوال لم تتغير بشكل كبير في منطقها الأساسي) ...
+
             function loadAndProcessAllData() {
                 showLoadingIndicator(true, "Performing Spatial Analysis & Loading Data...");
                 const govPromise = governorateLayer.queryFeatures({ where: "1=1", outFields: ["name"], returnGeometry: true });
@@ -337,6 +356,51 @@
                     .catch(handleDataLoadError)
                     .finally(() => showLoadingIndicator(false));
             }
+
+            // ... (دالة processFeature وباقي الدوال)
+
+            function getAttributeFilters() {
+                return {
+                    // 💡 إضافة فلتر الاسم
+                    name: $('#nameSearch').val().toLowerCase().trim(),
+                    role: $('#roleFilter').val(),
+                    field: $('#fieldFilter').val(),
+                    hideZero: $('#hideZeroNeededFilter').prop('checked'),
+                    layerType: $('input[name="layerFilter"]:checked').val(),
+                    fromDate: $('#creationFromDate').val(),
+                    toDate: $('#creationToDate').val()
+                };
+            }
+
+            function checkAttributeMatch(beneficiary, filters) {
+                // 💡 إضافة التحقق من تطابق الاسم (بشكل غير حساس لحالة الأحرف)
+                const nameMatch = !filters.name || beneficiary.name.toLowerCase().includes(filters.name);
+                const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType;
+                const zeroMatch = !filters.hideZero || beneficiary.neededAmount > 0;
+                const roleMatch = !filters.role || beneficiary.userType === filters.role;
+                const fieldMatch = !filters.field || beneficiary.helpFields.some(f => f.trim() === filters.field);
+                const fromDateMatch = !filters.fromDate || (beneficiary.creationDate && beneficiary.creationDate >= new Date(filters.fromDate).getTime());
+                const toDateMatch = !filters.toDate || (beneficiary.creationDate && beneficiary.creationDate <= new Date(filters.toDate).setHours(23, 59, 59, 999));
+
+                // 💡 إضافة nameMatch إلى الشرط النهائي
+                return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch;
+            }
+
+            // ... (بقية ملف الجافاسكريبت)
+            // The rest of the javascript code remains the same...
+            // Just paste the code inside the <script> tag.
+            // The following functions are not changed:
+            // processFeature, findNearMe, handleLocationSuccess, handleLocationError, handleSortClick,
+            // handleZoomToClick, performFilteringAsync, getCombinedSpatialFilter, applyMapLayerFilter,
+            // populateGovernorateFilter, formatDate, updateSortIcons, renderTablePage,
+            // populateFilters, updatePaginationControls, zoomToAll, handleMapClick, updateSummary,
+            // formatCurrency, createPopupTemplate, showLoadingIndicator, handleDataLoadError,
+            // toggleFeatureSelection, clearAllSelections, highlightSelection, handleRowCheckboxChange,
+            // handleSketchCreate, handleSelectAll, submitAllDonations, handleDonateClick, handleRemoveDonation,
+            // updateTableSelectionVisuals, updateSelectionCount, updateSelectAllCheckboxState, updateRemaining,
+            // toggleSketchMode, getVisibleLayers, updateLayerVisibility
+            // The existing `performFilteringAsync` function already calls `getAttributeFilters` and `checkAttributeMatch`
+            // so no changes are needed there. The logic will automatically pick up the new name filter.
 
             function processFeature(feature, layerType) {
                 const attrs = feature.attributes;
@@ -484,27 +548,6 @@
                 const filter = geometry ? { geometry } : null;
                 if (neediesLayer) neediesLayer.filter = filter;
                 if (charitiesLayer) charitiesLayer.filter = filter;
-            }
-
-            function getAttributeFilters() {
-                return {
-                    role: $('#roleFilter').val(),
-                    field: $('#fieldFilter').val(),
-                    hideZero: $('#hideZeroNeededFilter').prop('checked'),
-                    layerType: $('input[name="layerFilter"]:checked').val(),
-                    fromDate: $('#creationFromDate').val(),
-                    toDate: $('#creationToDate').val()
-                };
-            }
-
-            function checkAttributeMatch(beneficiary, filters) {
-                const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType;
-                const zeroMatch = !filters.hideZero || beneficiary.neededAmount > 0;
-                const roleMatch = !filters.role || beneficiary.userType === filters.role;
-                const fieldMatch = !filters.field || beneficiary.helpFields.some(f => f.trim() === filters.field);
-                const fromDateMatch = !filters.fromDate || (beneficiary.creationDate && beneficiary.creationDate >= new Date(filters.fromDate).getTime());
-                const toDateMatch = !filters.toDate || (beneficiary.creationDate && beneficiary.creationDate <= new Date(filters.toDate).setHours(23, 59, 59, 999));
-                return layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch;
             }
 
             function populateGovernorateFilter(govFeatures) {
@@ -840,7 +883,6 @@
                 if (neediesLayer) neediesLayer.visible = "needy" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
                 if (charitiesLayer) charitiesLayer.visible = "charity" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
             }
-
         });
     </script>
 }
