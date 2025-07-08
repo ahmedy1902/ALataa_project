@@ -129,7 +129,9 @@ public class AccountController : Controller
                 }
                 if (roles.Contains("Charity"))
                 {
-                    return RedirectToAction("Index", "Home");
+                    return Redirect("https://experience.arcgis.com/experience/78897f7fc1db424ba77bd1c242532b71");
+
+                    //return RedirectToAction("Index", "Home");
                 }
             }
 
