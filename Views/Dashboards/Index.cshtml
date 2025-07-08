@@ -1,0 +1,76 @@
+﻿@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4"><i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard</h1>
+        <p class="lead text-muted">Central control panel for application management.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-3">
+            <a href="#" class="card-link">
+                <div class="card h-100 text-center shadow-sm card-hover">
+                    <div class="card-body">
+                        <i class="fas fa-users-cog fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">User Management</h5>
+                        <p class="card-text">View and manage all users and roles.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <a href="#" class="card-link">
+                <div class="card h-100 text-center shadow-sm card-hover">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Donation Analytics</h5>
+                        <p class="card-text">Track and analyze donation trends.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <a href="#" class="card-link">
+                <div class="card h-100 text-center shadow-sm card-hover">
+                    <div class="card-body">
+                        <i class="fas fa-map-marked-alt fa-3x text-danger mb-3"></i>
+                        <h5 class="card-title">Manage Cases</h5>
+                        <p class="card-text">Review and approve new beneficiary cases.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <a href="#" class="card-link">
+                <div class="card h-100 text-center shadow-sm card-hover">
+                    <div class="card-body">
+                        <i class="fas fa-cogs fa-3x text-secondary mb-3"></i>
+                        <h5 class="card-title">System Settings</h5>
+                        <p class="card-text">Configure application settings.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .card-hover {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15) !important;
+        }
+</style>
