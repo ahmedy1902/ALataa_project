@@ -1,0 +1,152 @@
+@model Accounts.ViewModels.DonateViewModel
+@{
+    ViewData["Title"] = "Donate";
+}
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-6 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h3 class="mb-3">Make a Donation</h3>
+                    <form id="donationForm">
+                        <div class="mb-3">
+                            <label for="TotalDonation" class="form-label">Total Amount to Donate</label>
+                            <input asp-for="TotalDonation" class="form-control" id="TotalDonation" type="number" min="1" step="0.01" />
+                            <span asp-validation-for="TotalDonation" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Remaining Balance</label>
+                            <input class="form-control" id="RemainingBalance" value="@Model.RemainingBalance" readonly />
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h4 class="mb-3">Beneficiaries</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Needed Amount</th>
+                                    <th>User Type</th>
+                                    <th>Donate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var b in Model.Beneficiaries)
+                                {
+                                    <tr data-id="@b.BeneficiaryId">
+                                        <td>@b.Name</td>
+                                        <td>@b.NeededAmount</td>
+                                        <td>@b.UserType</td>
+                                        <td>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control donate-amount" min="1" max="@b.NeededAmount" placeholder="Amount" />
+                                                <button type="button" class="btn btn-success donate-btn">Donate to this person</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h4 class="mb-3">Donation Summary</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="donationSummary">
+                            <thead>
+                                <tr>
+                                    <th>Beneficiary</th>
+                                    <th>User Type</th>
+                                    <th>Donated Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Filled by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-primary" id="submitAllBtn" disabled>Submit All Donations</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        let totalDonation = 0;
+        let remaining = 0;
+        let donations = [];
+
+        function updateRemaining() {
+            const input = $("#TotalDonation");
+            totalDonation = parseFloat(input.val()) || 0;
+            remaining = totalDonation - donations.reduce((sum, d) => sum + d.amount, 0);
+            $("#RemainingBalance").val(remaining.toFixed(2));
+            $("#submitAllBtn").prop("disabled", donations.length === 0 || remaining < 0 || totalDonation === 0);
+        }
+
+        function updateSummary() {
+            const tbody = $("#donationSummary tbody");
+            tbody.empty();
+            donations.forEach(d => {
+                tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${d.amount}</td></tr>`);
+            });
+            updateRemaining();
+        }
+
+        $(document).on("input", "#TotalDonation", function () {
+            updateRemaining();
+        });
+
+        $(document).on("click", ".donate-btn", function () {
+            const row = $(this).closest("tr");
+            const id = row.data("id");
+            const name = row.find("td").eq(0).text();
+            const needed = parseFloat(row.find("td").eq(1).text());
+            const input = row.find(".donate-amount");
+            const amount = parseFloat(input.val());
+            if (!amount || amount <= 0 || amount > needed) {
+                input.addClass("is-invalid");
+                return;
+            }
+            input.removeClass("is-invalid");
+            // Check remaining
+            if (amount > remaining) {
+                input.addClass("is-invalid");
+                return;
+            }
+            // Add or update donation
+            const existing = donations.find(d => d.id === id);
+            if (existing) {
+                existing.amount += amount;
+            } else {
+                donations.push({ id, name, amount });
+            }
+            updateSummary();
+            input.val("");
+        });
+
+        $(document).on("click", "#submitAllBtn", function () {
+            alert("Donations submitted! (Demo only)");
+        });
+    </script>
+}
