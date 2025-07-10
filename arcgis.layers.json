@@ -1,0 +1,10 @@
+{
+  "ArcGisSettings": {
+    "NeediesServiceUrl": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_1b6326b33d2b4213bf757d6780a0f12a_results/FeatureServer/0",
+    "CharitiesServiceUrl": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_2c36d5ade9064fe685d54893df3b37ea_results/FeatureServer/0",
+    "DonorsServiceUrl": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/survey123_fb464f56faae4b6c803825277c69be1c_results/FeatureServer/0",
+    "DonationsLayerUrl": "https://services.arcgis.com/LxyOyIfeECQuFOsk/arcgis/rest/services/Donations_made_by_donors/FeatureServer/0"
+  }
+}
+
+
