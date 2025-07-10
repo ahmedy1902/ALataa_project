@@ -386,22 +386,6 @@
                 return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch;
             }
 
-            // ... (بقية ملف الجافاسكريبت)
-            // The rest of the javascript code remains the same...
-            // Just paste the code inside the <script> tag.
-            // The following functions are not changed:
-            // processFeature, findNearMe, handleLocationSuccess, handleLocationError, handleSortClick,
-            // handleZoomToClick, performFilteringAsync, getCombinedSpatialFilter, applyMapLayerFilter,
-            // populateGovernorateFilter, formatDate, updateSortIcons, renderTablePage,
-            // populateFilters, updatePaginationControls, zoomToAll, handleMapClick, updateSummary,
-            // formatCurrency, createPopupTemplate, showLoadingIndicator, handleDataLoadError,
-            // toggleFeatureSelection, clearAllSelections, highlightSelection, handleRowCheckboxChange,
-            // handleSketchCreate, handleSelectAll, submitAllDonations, handleDonateClick, handleRemoveDonation,
-            // updateTableSelectionVisuals, updateSelectionCount, updateSelectAllCheckboxState, updateRemaining,
-            // toggleSketchMode, getVisibleLayers, updateLayerVisibility
-            // The existing `performFilteringAsync` function already calls `getAttributeFilters` and `checkAttributeMatch`
-            // so no changes are needed there. The logic will automatically pick up the new name filter.
-
             function processFeature(feature, layerType) {
                 const attrs = feature.attributes;
                 const isCharity = layerType === 'charity';
