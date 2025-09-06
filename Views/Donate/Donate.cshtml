@@ -114,7 +114,7 @@
         animation: pulse 1.5s ease-in-out infinite;
     }
 
-    keyframes pulse {
+        keyframes pulse {
         0%
 
     {
@@ -163,7 +163,7 @@
             <button id="ai-chat-close" type="button" class="btn-close btn-close-white"></button>
         </div>
         <div id="ai-chat-messages" class="p-3">
-            <!-- المحتوى سيتم إضافته بـ JavaScript -->
+            <!-- Content will be added by JavaScript -->
         </div>
         <div id="ai-chat-input-container" class="p-3 border-top">
             <form id="ai-chat-form" class="d-flex align-items-center gap-2">
@@ -382,7 +382,7 @@
             let aiAmountFilter = null;
             let searchTimeout = null;
 
-            // الحصول على القيم من الـ Controller
+            // Get values from Controller
             const NEEDIES_SERVICE_URL = "@ViewData["NeediesUrl"]";
             const CHARITIES_SERVICE_URL = "@ViewData["CharitiesUrl"]";
             const GOVERNORATES_SERVICE_URL = "@ViewData["GovernoratesUrl"]";
@@ -451,7 +451,7 @@
                 });
             }
 
-            // ✅ دالة مسح الفلاتر المحدثة
+            // ✅ Updated clear filters function
             function clearAllFilters(shouldZoom = true) {
                 $('#nameSearch, #governorateFilter, #roleFilter, #fieldFilter, #creationFromDate, #creationToDate').val('');
                 $('#hideZeroNeededFilter').prop('checked', false);
@@ -461,13 +461,13 @@
                 currentSortColumn = 'default';
                 currentSortDirection = 'asc';
 
-                // مسح الموقع والرسوميات
+                // Clear location and graphics
                 if (userLocationGraphic && runtimeGraphicsLayer) {
-                    runtimeGraphicsLayer.removeAll(); // مسح كل الرسوميات بما فيها الـ buffer
+                    runtimeGraphicsLayer.removeAll(); // Clear all graphics including buffer
                     userLocationGraphic = null;
                 }
 
-                // إعادة تعيين زر "Find Near Me"
+                // Reset "Find Near Me" button
                 $('#findNearMeBtn')
                     .removeClass('btn-info')
                     .addClass('btn-outline-info')
@@ -604,6 +604,7 @@
                 });
             }
 
+            // ✅ Load data function with debugging
             function loadAndProcessAllData() {
                 showLoadingIndicator(true, "Performing Spatial Analysis & Loading Data...");
                 const govPromise = governorateLayer.queryFeatures({ where: "1=1", outFields: ["name"], returnGeometry: true });
@@ -623,9 +624,34 @@
                         });
                         populateFilters();
                         performFilteringAsync();
+
+                        // ✅ Add debugging info
+                        setTimeout(() => {
+                            debugGovernoratesInfo();
+                        }, 1000);
                     })
                     .catch(handleDataLoadError)
                     .finally(() => showLoadingIndicator(false));
+            }
+
+            // ✅ Debugging function for governorates
+            function debugGovernoratesInfo() {
+                console.log("🏛️ Available governorates in data:");
+                const govSet = new Set();
+                allBeneficiaries.forEach(b => {
+                    if (b.governorate && b.governorate !== 'N/A') {
+                        govSet.add(b.governorate);
+                    }
+                });
+
+                console.log("📊 Unique governorates in beneficiaries:", Array.from(govSet).sort());
+
+                console.log("📋 Governorates in dropdown:");
+                $('#governorateFilter option').each(function() {
+                    if ($(this).val()) {
+                        console.log(`  "${$(this).val()}" -> "${$(this).text()}"`);
+                    }
+                });
             }
 
             function processFeature(feature, layerType) {
@@ -659,6 +685,7 @@
                 };
             }
 
+            // ✅ Attribute matching function with debugging
             function checkAttributeMatch(beneficiary, filters) {
                 const nameMatch = !filters.name || beneficiary.name.toLowerCase().includes(filters.name);
                 const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType;
@@ -668,7 +695,7 @@
                 const fromDateMatch = !filters.fromDate || (beneficiary.creationDate && beneficiary.creationDate >= new Date(filters.fromDate).getTime());
                 const toDateMatch = !filters.toDate || (beneficiary.creationDate && beneficiary.creationDate <= new Date(filters.toDate).setHours(23, 59, 59, 999));
 
-                // التحقق من الفلاتر الرقمية من الـ AI
+                // Check numerical filters from AI
                 let amountMatch = true;
                 if(filters.aiAmount) {
                     if (filters.aiAmount.less_than !== undefined && beneficiary.neededAmount >= filters.aiAmount.less_than) {
@@ -679,13 +706,31 @@
                     }
                 }
 
-                return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch && amountMatch;
+                // Add governorate check with debugging
+                let governorateMatch = true;
+                const selectedGovernorate = $('#governorateFilter').val();
+                if (selectedGovernorate) {
+                    governorateMatch = beneficiary.governorate === selectedGovernorate;
+
+                    // debugging for governorates
+                    if (!governorateMatch && Math.random() < 0.01) { // print 1% of results only
+                        console.log(`🏛️ Governorate mismatch: "${beneficiary.governorate}" vs selected "${selectedGovernorate}"`);
+                    }
+                }
+
+                return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch && amountMatch && governorateMatch;
             }
 
+            // ✅ Filtering function with detailed debugging
             function performFilteringAsync() {
                 showLoadingIndicator(true, "Applying filters...");
                 setTimeout(() => {
                     updateLayerVisibility();
+
+                    // Print applied filters
+                    const attributeFilters = getAttributeFilters();
+                    console.log("🔍 Applied filters:", attributeFilters);
+                    console.log("📊 Total beneficiaries:", allBeneficiaries.length);
 
                     let results = [];
                     if (isSelectionModeActive) {
@@ -693,13 +738,32 @@
                     } else {
                         const spatialFilter = getCombinedSpatialFilter();
                         applyMapLayerFilter(spatialFilter);
-                        const attributeFilters = getAttributeFilters();
+
+                        // Print spatial filter information
+                        if (spatialFilter) {
+                            console.log("🗺️ Spatial filter applied");
+                        } else {
+                            console.log("🗺️ No spatial filter");
+                        }
+
+                        let spatialMatches = 0;
+                        let attributeMatches = 0;
+                        let finalMatches = 0;
+
                         for (const beneficiary of allBeneficiaries) {
-                            if (checkAttributeMatch(beneficiary, attributeFilters) &&
-                                (!spatialFilter || (beneficiary.geometry && geometryEngine.contains(spatialFilter, beneficiary.geometry)))) {
+                            const attributeMatch = checkAttributeMatch(beneficiary, attributeFilters);
+                            const spatialMatch = !spatialFilter || (beneficiary.geometry && geometryEngine.contains(spatialFilter, beneficiary.geometry));
+
+                            if (attributeMatch) attributeMatches++;
+                            if (spatialMatch) spatialMatches++;
+
+                            if (attributeMatch && spatialMatch) {
                                 results.push(beneficiary);
+                                finalMatches++;
                             }
                         }
+
+                        console.log(`📈 Filter results: ${attributeMatches} attribute matches, ${spatialMatches} spatial matches, ${finalMatches} final matches`);
                     }
 
                     if (currentSortColumn !== 'default') {
@@ -910,7 +974,7 @@
                 }
             }
 
-            // ✅ دالة findNearMe المحسنة مع رسم دائرة 10 كم
+            // ✅ Enhanced findNearMe function with 10km circle rendering
             function findNearMe() {
                 if (!navigator.geolocation) {
                     alert("Geolocation is not supported by this browser.");
@@ -947,7 +1011,7 @@
                         runtimeGraphicsLayer.removeAll();
                     }
 
-                    // إضافة رمز موقع المستخدم
+                    // Add user location marker
                     userLocationGraphic = new Graphic({
                         geometry: userPoint,
                         symbol: {
@@ -960,7 +1024,7 @@
                     });
                     runtimeGraphicsLayer.add(userLocationGraphic);
 
-                    // إضافة رمز الدائرة للتوضيح
+                    // Add circle symbol for illustration
                     const bufferGraphic = new Graphic({
                         geometry: nearMeFilterGeometry,
                         symbol: {
@@ -976,7 +1040,7 @@
                         duration: 1000
                     });
 
-                    // تحديث UI
+                    // Update UI
                     updateNearMeStatus(true, coords);
                     performFilteringAsync();
 
@@ -984,7 +1048,7 @@
 
                 } catch (e) {
                     console.error("Error in handleLocationSuccess:", e);
-                    alert("حدث خطأ أثناء معالجة موقعك. يرجى المحاولة مرة أخرى.");
+                    alert("An error occurred while processing your location. Please try again.");
                 } finally {
                     showLoadingIndicator(false);
                 }
@@ -993,25 +1057,25 @@
             function handleLocationError(error) {
                 showLoadingIndicator(false);
 
-                let message = "حدث خطأ غير معروف.";
+                let message = "An unknown error occurred.";
                 let suggestion = "";
 
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
-                        message = "تم رفض طلب الوصول إلى الموقع.";
-                        suggestion = "يرجى السماح بالوصول إلى الموقع في إعدادات المتصفح.";
+                        message = "Location access was denied.";
+                        suggestion = "Please allow location access in your browser settings.";
                         break;
                     case error.POSITION_UNAVAILABLE:
-                        message = "معلومات الموقع غير متاحة.";
-                        suggestion = "تأكد من تفعيل GPS أو خدمات الموقع.";
+                        message = "Location information is unavailable.";
+                        suggestion = "Please ensure GPS or location services are enabled.";
                         break;
                     case error.TIMEOUT:
-                        message = "انتهت مهلة الحصول على الموقع.";
-                        suggestion = "تأكد من الاتصال بالإنترنت وحاول مرة أخرى.";
+                        message = "Location request timed out.";
+                        suggestion = "Please check your internet connection and try again.";
                         break;
                 }
 
-                alert(`خطأ في تحديد الموقع: ${message}\n${suggestion}`);
+                alert(`Location error: ${message}\n${suggestion}`);
 
                 if ($('#ai-chat-window').is(':visible')) {
                     $('#ai-chat-messages').append(`
@@ -1248,7 +1312,7 @@
                 if (charitiesLayer) charitiesLayer.visible = "charity" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
             }
 
-            // ✅ دوال الـ AI Chat المحدثة والمحسنة
+            // ✅ Enhanced AI Chat functions
             function initializeChat() {
                 $('#ai-chat-messages').append(`
                     <div class="ai-message">
@@ -1264,9 +1328,9 @@
                             <button type="button" class="suggestion-btn btn btn-outline-warning btn-sm me-1 mb-1"
                                     data-suggestion="Housing needs">🏠 Housing needs</button>
                             <button type="button" class="suggestion-btn btn btn-outline-danger btn-sm me-1 mb-1"
-                                    data-suggestion="أقرب حالات من مكاني">📍 أقرب حالات</button>
+                                    data-suggestion="Find nearest cases">📍 Find Near Me</button>
                             <button type="button" class="suggestion-btn btn btn-outline-secondary btn-sm me-1 mb-1"
-                                    data-suggestion="عايز الحالات في المنوفية">🏛️ حالات المنوفية</button>
+                                    data-suggestion="Cases in Menoufia">🏛️ Cases in Menoufia</button>
                         </div>
                         <small class="text-muted mt-2 d-block">
                             <i class="fas fa-lightbulb me-1"></i>
@@ -1481,10 +1545,12 @@
                 return summary.length > 0 ? summary.join(' • ') : 'General search applied';
             }
 
+            // ✅ Enhanced AI filters application with detailed logging
             function applyAIFilters(aiFilters) {
                 clearAllFilters(false);
+                console.log("🔍 Applying AI Filters:", aiFilters);
 
-                // ✅ معالجة خاصة لطلبات "Near Me"
+                // ✅ Handle "Near Me" requests specially
                 if (aiFilters.location === "NEAR_ME") {
                     findNearMe();
 
@@ -1499,40 +1565,87 @@
                     return;
                 }
 
-                // معالجة الفلاتر العادية
+                // Handle regular filters with detailed logging
                 if (aiFilters.location && typeof aiFilters.location === 'string') {
                     const $locationFilter = $('#governorateFilter');
                     let found = false;
 
+                    console.log("🎯 Looking for location:", aiFilters.location);
+                    console.log("📋 Available options in dropdown:");
+
+                    // Print all available options
+                    $locationFilter.find('option').each(function(index) {
+                        console.log(`  ${index}: "${$(this).val()}" -> "${$(this).text()}"`);
+                    });
+
+                    // Look for exact match first
                     $locationFilter.find('option').each(function() {
-                        if ($(this).val() === aiFilters.location) {
-                            $locationFilter.val(aiFilters.location);
+                        const optionValue = $(this).val();
+                        const optionText = $(this).text();
+
+                        if (optionValue === aiFilters.location || optionText === aiFilters.location) {
+                            console.log("✅ Exact match found:", optionValue);
+                            $locationFilter.val(optionValue);
                             found = true;
                             return false;
                         }
                     });
 
+                    // If no exact match, try partial match
                     if (!found) {
+                        console.log("🔍 No exact match, trying partial match...");
                         $locationFilter.find('option').each(function() {
+                            const optionValue = $(this).val();
                             const optionText = $(this).text().toLowerCase();
                             const locationValue = aiFilters.location.toLowerCase();
+
                             if (optionText.includes(locationValue) || locationValue.includes(optionText)) {
-                                $locationFilter.val($(this).val());
+                                console.log("✅ Partial match found:", optionValue);
+                                $locationFilter.val(optionValue);
                                 found = true;
                                 return false;
                             }
                         });
                     }
 
+                    // If no match found, try governorate mapping
                     if (!found) {
-                        console.warn('Location not found in dropdown:', aiFilters.location);
+                        console.log("🔍 No partial match, trying governorate mapping...");
+                        const mappedLocation = findGovernorateMapping(aiFilters.location);
+                        if (mappedLocation) {
+                            $locationFilter.find('option').each(function() {
+                                if ($(this).val() === mappedLocation || $(this).text() === mappedLocation) {
+                                    console.log("✅ Mapped match found:", mappedLocation);
+                                    $locationFilter.val($(this).val());
+                                    found = true;
+                                    return false;
+                                }
+                            });
+                        }
+                    }
+
+                    if (!found) {
+                        console.warn('❌ Location not found in dropdown:', aiFilters.location);
+                        // Add message in chat
+                        $('#ai-chat-messages').append(`
+                            <div class="ai-message error">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Location "${aiFilters.location}" not found in available governorates.
+                                <small class="d-block mt-1">Showing all locations instead.</small>
+                            </div>
+                        `);
+                    } else {
+                        console.log("✅ Final selected value:", $locationFilter.val());
                     }
                 }
 
+                // Handle need type filters
                 if (aiFilters.need_type && typeof aiFilters.need_type === 'string') {
                     const $fieldFilter = $('#fieldFilter');
                     const needType = aiFilters.need_type.toLowerCase().trim();
                     let found = false;
+
+                    console.log("🎯 Looking for need type:", needType);
 
                     $fieldFilter.find('option').each(function() {
                         const optionText = $(this).text().toLowerCase();
@@ -1541,6 +1654,7 @@
                         if (optionText === needType || optionValue === needType) {
                             $fieldFilter.val($(this).val());
                             found = true;
+                            console.log("✅ Need type match found:", $(this).val());
                             return false;
                         }
                     });
@@ -1551,27 +1665,72 @@
                             if (optionText.includes(needType) || needType.includes(optionText)) {
                                 $fieldFilter.val($(this).val());
                                 found = true;
+                                console.log("✅ Need type partial match found:", $(this).val());
                                 return false;
                             }
                         });
                     }
+
+                    if (!found) {
+                        console.warn('❌ Need type not found:', needType);
+                    }
                 }
 
+                // Handle numerical filters
                 aiAmountFilter = {};
-                if (typeof aiFilters.amount_less_than === 'number' && aiFilters.amount_less_than > 0 && aiFilters.amount_less_than <= 1000000) {
+                if (typeof aiFilters.amount_less_than === 'number' && aiFilters.amount_less_than > 0) {
                     aiAmountFilter.less_than = aiFilters.amount_less_than;
+                    console.log("💰 Amount filter (less than):", aiFilters.amount_less_than);
                 }
-                if (typeof aiFilters.amount_greater_than === 'number' && aiFilters.amount_greater_than >= 0 && aiFilters.amount_greater_than <= 1000000) {
+                if (typeof aiFilters.amount_greater_than === 'number' && aiFilters.amount_greater_than >= 0) {
                     aiAmountFilter.greater_than = aiFilters.amount_greater_than;
-                }
-
-                if (aiAmountFilter.less_than && aiAmountFilter.greater_than &&
-                    aiAmountFilter.greater_than >= aiAmountFilter.less_than) {
-                    delete aiAmountFilter.less_than;
-                    delete aiAmountFilter.greater_than;
+                    console.log("💰 Amount filter (greater than):", aiFilters.amount_greater_than);
                 }
 
                 performFilteringAsync();
+            }
+
+            // ✅ Governorate mapping function to solve name mismatch issues
+            function findGovernorateMapping(aiLocation) {
+                const mappings = {
+                    // Alexandria - all possibilities
+                    "Al Iskandariyah": ["Alexandria", "الإسكندرية", "Al Iskandariyah", "Al-Iskandariyah"],
+                    "Alexandria": ["Al Iskandariyah", "الإسكندرية", "Alexandria"],
+                    "الإسكندرية": ["Al Iskandariyah", "Alexandria"],
+
+                    // Cairo
+                    "Al Qahirah": ["Cairo", "القاهرة", "Al Qahirah"],
+                    "Cairo": ["Al Qahirah", "القاهرة"],
+                    "القاهرة": ["Al Qahirah", "Cairo"],
+
+                    // Giza
+                    "Al Jizah": ["Giza", "الجيزة", "Al Jizah"],
+                    "Giza": ["Al Jizah", "الجيزة"],
+                    "الجيزة": ["Al Jizah", "Giza"],
+
+                    // Menoufia
+                    "Al Minufiyah": ["Menoufia", "المنوفية", "Al Minufiyah"],
+                    "Menoufia": ["Al Minufiyah", "المنوفية"],
+                    "المنوفية": ["Al Minufiyah", "Menoufia"]
+                };
+
+                if (mappings[aiLocation]) {
+                    for (let mapped of mappings[aiLocation]) {
+                        // Check if this name exists in dropdown
+                        let found = false;
+                        $('#governorateFilter option').each(function() {
+                            if ($(this).val() === mapped || $(this).text() === mapped) {
+                                found = true;
+                                return false;
+                            }
+                        });
+                        if (found) {
+                            console.log("🔄 Mapped", aiLocation, "to", mapped);
+                            return mapped;
+                        }
+                    }
+                }
+                return null;
             }
 
             function scrollToBottom() {
@@ -1597,14 +1756,14 @@
                 return text.replace(/[&<>"']/g, m => map[m]);
             }
 
-            // اختصارات لوحة المفاتيح
+            // Keyboard shortcuts
             $('#ai-chat-input').on('keydown', function(e) {
                 if (e.key === 'Escape') {
                     $('#ai-chat-window').fadeOut();
                 }
             });
 
-            // إغلاق عند النقر خارج النافذة
+            // Close when clicking outside window
             $(document).on('click', function(e) {
                 if (!$(e.target).closest('#ai-chat-widget').length && $('#ai-chat-window').is(':visible')) {
                     $('#ai-chat-window').fadeOut();
