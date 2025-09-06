@@ -14,7 +14,168 @@
     .main-container {
         overflow: hidden;
     }
+
+    /* 💡 START: AI Chat Widget CSS */
+    #ai-chat-widget {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 1050;
+    }
+
+    #ai-chat-toggle {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        transition: all 0.3s ease;
+    }
+
+        #ai-chat-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+        }
+
+    #ai-chat-window {
+        position: absolute;
+        bottom: 80px;
+        right: 0;
+        width: 380px;
+        height: 500px;
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    #ai-chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #0d6efd, #0056b3);
+    }
+
+    #ai-chat-messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 350px;
+    }
+
+    .ai-message, .user-message {
+        padding: 12px 16px;
+        border-radius: 18px;
+        max-width: 85%;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+
+    .ai-message {
+        background-color: #f8f9fa;
+        align-self: flex-start;
+        border: 1px solid #e9ecef;
+    }
+
+    .user-message {
+        background: linear-gradient(135deg, #0d6efd, #0056b3);
+        color: white;
+        align-self: flex-end;
+    }
+
+    .ai-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+    }
+
+    .ai-message.success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border-color: #badbcc;
+    }
+
+    .suggestion-btn {
+        font-size: 0.85em;
+        padding: 4px 8px;
+        margin: 2px;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+
+        .suggestion-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.3);
+        }
+
+    .thinking-animation {
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    keyframes pulse {
+        0%
+
+    {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+
+    }
+
+    #ai-chat-input {
+        border-radius: 20px;
+        border: 1px solid #dee2e6;
+        padding: 8px 16px;
+    }
+
+        #ai-chat-input:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+    .btn-send {
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
+
+<div id="ai-chat-widget">
+    <button id="ai-chat-toggle" class="btn btn-primary btn-lg rounded-circle shadow">
+        <i class="fas fa-robot"></i>
+    </button>
+
+    <div id="ai-chat-window" class="shadow-lg rounded" style="display: none;">
+        <div id="ai-chat-header" class="text-white p-3 rounded-top">
+            <h5 class="mb-0"><i class="fas fa-brain me-2"></i>AI Search Assistant</h5>
+            <button id="ai-chat-close" type="button" class="btn-close btn-close-white"></button>
+        </div>
+        <div id="ai-chat-messages" class="p-3">
+            <!-- المحتوى سيتم إضافته بـ JavaScript -->
+        </div>
+        <div id="ai-chat-input-container" class="p-3 border-top">
+            <form id="ai-chat-form" class="d-flex align-items-center gap-2">
+                <input type="text" id="ai-chat-input" class="form-control"
+                       placeholder="Type your search request..." maxlength="500">
+                <button type="submit" class="btn btn-primary btn-send">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
 
 <br />
 <br />
@@ -218,11 +379,10 @@
             let isSelectionModeActive = false;
             let currentSortColumn = 'default';
             let currentSortDirection = 'asc';
-
-            // 💡 متغير لتأخير تنفيذ البحث أثناء الكتابة
+            let aiAmountFilter = null;
             let searchTimeout = null;
 
-            // 💡 الحصول على القيم من الـ Controller بدلاً من الثوابت
+            // الحصول على القيم من الـ Controller
             const NEEDIES_SERVICE_URL = "@ViewData["NeediesUrl"]";
             const CHARITIES_SERVICE_URL = "@ViewData["CharitiesUrl"]";
             const GOVERNORATES_SERVICE_URL = "@ViewData["GovernoratesUrl"]";
@@ -231,25 +391,24 @@
             const NEEDY_COLOR = "@ViewData["NeedyColor"]";
             const CHARITY_COLOR = "@ViewData["CharityColor"]";
             const BufferArea = @ViewData["BufferArea"];
-
-            // 💡 الحصول على إحداثيات مصر من الـ Controller
             const EgyptExtent = @Html.Raw(Json.Serialize(ViewData["EgyptExtent"]));
 
+            initializeChat();
             initializeMap();
             bindEvents();
+
             function bindEvents() {
                 $(document).on("input", "#TotalDonation", updateRemaining);
                 $(document).on("click", ".donate-btn", handleDonateClick);
                 $(document).on("click", ".remove-donation-btn", handleRemoveDonation);
                 $('#submitAllBtn').on("click", submitAllDonations);
 
-                // 💡 ربط حدث البحث بالاسم مع تأخير بسيط لتحسين الأداء
                 $('#nameSearch').on('keyup', function() {
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         isSelectionModeActive = false;
                         performFilteringAsync();
-                    }, 300); // 300ms delay
+                    }, 300);
                 });
 
                 $('#governorateFilter, #roleFilter, #fieldFilter, #hideZeroNeededFilter, input[name="layerFilter"], #creationFromDate, #creationToDate').on('change', () => {
@@ -258,19 +417,7 @@
                 });
 
                 $('#showAllBtn').on('click', function () {
-                    // 💡 مسح حقل البحث بالاسم عند الضغط على "Show All"
-                    $('#nameSearch').val('');
-                    $('#governorateFilter, #roleFilter, #fieldFilter, #creationFromDate, #creationToDate').val('');
-                    $('#hideZeroNeededFilter').prop('checked', false);
-                    isSelectionModeActive = false;
-                    currentSortColumn = 'default';
-                    nearMeFilterGeometry = null;
-                    if (userLocationGraphic) {
-                        runtimeGraphicsLayer.remove(userLocationGraphic);
-                        userLocationGraphic = null;
-                    }
-                    performFilteringAsync();
-                    zoomToAll();
+                    clearAllFilters(true);
                 });
 
                 $('#rowsPerPage').on('change', function () {
@@ -293,6 +440,45 @@
                 $('#findNearMeBtn').on('click', findNearMe);
                 $('#beneficiariesTable').on('click', '.sortable-header', handleSortClick);
                 $('#beneficiariesTable').on('click', '.btn-zoom-to', handleZoomToClick);
+
+                // AI Chat Events
+                $('#ai-chat-toggle').on('click', () => $('#ai-chat-window').fadeToggle());
+                $('#ai-chat-close').on('click', () => $('#ai-chat-window').fadeOut());
+                $('#ai-chat-form').on('submit', handleAiSearch);
+                $(document).on('click', '.suggestion-btn', function() {
+                    $('#ai-chat-input').val($(this).data('suggestion'));
+                    $('#ai-chat-form').submit();
+                });
+            }
+
+            // ✅ دالة مسح الفلاتر المحدثة
+            function clearAllFilters(shouldZoom = true) {
+                $('#nameSearch, #governorateFilter, #roleFilter, #fieldFilter, #creationFromDate, #creationToDate').val('');
+                $('#hideZeroNeededFilter').prop('checked', false);
+                $('input[name="layerFilter"][value="both"]').prop('checked', true);
+                aiAmountFilter = null;
+                nearMeFilterGeometry = null;
+                currentSortColumn = 'default';
+                currentSortDirection = 'asc';
+
+                // مسح الموقع والرسوميات
+                if (userLocationGraphic && runtimeGraphicsLayer) {
+                    runtimeGraphicsLayer.removeAll(); // مسح كل الرسوميات بما فيها الـ buffer
+                    userLocationGraphic = null;
+                }
+
+                // إعادة تعيين زر "Find Near Me"
+                $('#findNearMeBtn')
+                    .removeClass('btn-info')
+                    .addClass('btn-outline-info')
+                    .html('<i class="fas fa-location-arrow"></i> Find Near Me');
+
+                isSelectionModeActive = false;
+
+                if (shouldZoom) {
+                    performFilteringAsync();
+                    zoomToAll();
+                }
             }
 
             function initializeMap() {
@@ -310,28 +496,113 @@
                     projection = esriProjection;
 
                     const map = new Map({ basemap: "streets-navigation-vector" });
-                    mapView = new MapView({ container: "mapViewDiv", map: map, center: [31.2357, 30.0444], zoom: 6, popup: { dockEnabled: true, dockOptions: { breakpoint: false, position: "top-right" } }, highlightOptions: { color: [255, 255, 0, 1], haloOpacity: 0.9, fillOpacity: 0.4 } });
+                    mapView = new MapView({
+                        container: "mapViewDiv",
+                        map: map,
+                        center: [31.2357, 30.0444],
+                        zoom: 6,
+                        popup: {
+                            dockEnabled: true,
+                            dockOptions: { breakpoint: false, position: "top-right" }
+                        },
+                        highlightOptions: {
+                            color: [255, 255, 0, 1],
+                            haloOpacity: 0.9,
+                            fillOpacity: 0.4
+                        }
+                    });
 
-                    const createBeneficiaryRenderer = (color) => new SimpleRenderer({ symbol: new SimpleMarkerSymbol({ style: "circle", color: color, outline: { color: "white", width: 1 } }), visualVariables: [{ type: "size", field: "how_much_do_you_need", stops: [{ value: 100, size: "8px" }, { value: 5000, size: "16px" }, { value: 50000, size: "32px" }] }] });
-                    const createClusterConfig = (popupTitle) => ({ type: "cluster", clusterRadius: "80px", popupTemplate: { title: `Cluster of ${popupTitle}`, content: "This cluster represents {cluster_count} beneficiaries." }, clusterMinSize: "24px", clusterMaxSize: "60px", labelingInfo: [{ labelExpressionInfo: { expression: "Text($feature.cluster_count, '#,###')" }, symbol: { type: "text", color: "#ffffff", font: { weight: "bold", size: "12px" } }, labelPlacement: "center-center" }] });
+                    const createBeneficiaryRenderer = (color) => new SimpleRenderer({
+                        symbol: new SimpleMarkerSymbol({
+                            style: "circle",
+                            color: color,
+                            outline: { color: "white", width: 1 }
+                        }),
+                        visualVariables: [{
+                            type: "size",
+                            field: "how_much_do_you_need",
+                            stops: [
+                                { value: 100, size: "8px" },
+                                { value: 5000, size: "16px" },
+                                { value: 50000, size: "32px" }
+                            ]
+                        }]
+                    });
 
-                    neediesLayer = new FeatureLayer({ url: NEEDIES_SERVICE_URL, title: "Needies", outFields: ["*"], popupTemplate: createPopupTemplate('needy'), renderer: createBeneficiaryRenderer(NEEDY_COLOR), featureReduction: createClusterConfig("Needies") });
-                    charitiesLayer = new FeatureLayer({ url: CHARITIES_SERVICE_URL, title: "Charities", outFields: ["*"], popupTemplate: createPopupTemplate('charity'), renderer: createBeneficiaryRenderer(CHARITY_COLOR), featureReduction: createClusterConfig("Charities") });
-                    governorateLayer = new FeatureLayer({ url: GOVERNORATES_SERVICE_URL, opacity: 0.15, renderer: { type: "simple", symbol: { type: "simple-fill", style: "none", outline: { color: "#4e4e4e", width: 1 } } }, labelingInfo: [] });
+                    const createClusterConfig = (popupTitle) => ({
+                        type: "cluster",
+                        clusterRadius: "80px",
+                        popupTemplate: {
+                            title: `Cluster of ${popupTitle}`,
+                            content: "This cluster represents {cluster_count} beneficiaries."
+                        },
+                        clusterMinSize: "24px",
+                        clusterMaxSize: "60px",
+                        labelingInfo: [{
+                            labelExpressionInfo: {
+                                expression: "Text($feature.cluster_count, '#,###')"
+                            },
+                            symbol: {
+                                type: "text",
+                                color: "#ffffff",
+                                font: { weight: "bold", size: "12px" }
+                            },
+                            labelPlacement: "center-center"
+                        }]
+                    });
+
+                    neediesLayer = new FeatureLayer({
+                        url: NEEDIES_SERVICE_URL,
+                        title: "Needies",
+                        outFields: ["*"],
+                        popupTemplate: createPopupTemplate('needy'),
+                        renderer: createBeneficiaryRenderer(NEEDY_COLOR),
+                        featureReduction: createClusterConfig("Needies")
+                    });
+
+                    charitiesLayer = new FeatureLayer({
+                        url: CHARITIES_SERVICE_URL,
+                        title: "Charities",
+                        outFields: ["*"],
+                        popupTemplate: createPopupTemplate('charity'),
+                        renderer: createBeneficiaryRenderer(CHARITY_COLOR),
+                        featureReduction: createClusterConfig("Charities")
+                    });
+
+                    governorateLayer = new FeatureLayer({
+                        url: GOVERNORATES_SERVICE_URL,
+                        opacity: 0.15,
+                        renderer: {
+                            type: "simple",
+                            symbol: {
+                                type: "simple-fill",
+                                style: "none",
+                                outline: { color: "#4e4e4e", width: 1 }
+                            }
+                        },
+                        labelingInfo: []
+                    });
 
                     const sketchLayer = new GraphicsLayer();
                     runtimeGraphicsLayer = new GraphicsLayer();
 
                     map.addMany([governorateLayer, neediesLayer, charitiesLayer, sketchLayer, runtimeGraphicsLayer]);
 
-                    sketchViewModel = new SketchViewModel({ view: mapView, layer: sketchLayer, polygonSymbol: { type: "simple-fill", color: [51, 51, 204, 0.2], outline: { color: "#3333cc", width: 2 } } });
+                    sketchViewModel = new SketchViewModel({
+                        view: mapView,
+                        layer: sketchLayer,
+                        polygonSymbol: {
+                            type: "simple-fill",
+                            color: [51, 51, 204, 0.2],
+                            outline: { color: "#3333cc", width: 2 }
+                        }
+                    });
+
                     mapView.on("click", handleMapClick);
                     sketchViewModel.on("create", handleSketchCreate);
                     loadAndProcessAllData();
                 });
             }
-
-            // ... (باقي الدوال لم تتغير بشكل كبير في منطقها الأساسي) ...
 
             function loadAndProcessAllData() {
                 showLoadingIndicator(true, "Performing Spatial Analysis & Loading Data...");
@@ -357,23 +628,38 @@
                     .finally(() => showLoadingIndicator(false));
             }
 
-            // ... (دالة processFeature وباقي الدوال)
+            function processFeature(feature, layerType) {
+                const attrs = feature.attributes;
+                const isCharity = layerType === 'charity';
+                return {
+                    id: `${layerType}_${attrs.objectid}`,
+                    name: isCharity ? attrs.charity_name : attrs.full_name,
+                    neededAmount: attrs.how_much_do_you_need || 0,
+                    userType: isCharity ? 'Charity' : 'Needy',
+                    helpFields: isCharity ? (attrs.charity_sector || 'General').split(/[,;]/).map(s => s.trim()) : [attrs.type_of_need || 'General'],
+                    email: isCharity ? attrs.enter_your_e_mail : attrs.email,
+                    creationDate: attrs.CreationDate || 0,
+                    layerType: layerType,
+                    objectId: attrs.objectid,
+                    governorate: 'N/A',
+                    geometry: feature.geometry
+                };
+            }
 
             function getAttributeFilters() {
                 return {
-                    // 💡 إضافة فلتر الاسم
                     name: $('#nameSearch').val().toLowerCase().trim(),
                     role: $('#roleFilter').val(),
                     field: $('#fieldFilter').val(),
                     hideZero: $('#hideZeroNeededFilter').prop('checked'),
                     layerType: $('input[name="layerFilter"]:checked').val(),
                     fromDate: $('#creationFromDate').val(),
-                    toDate: $('#creationToDate').val()
+                    toDate: $('#creationToDate').val(),
+                    aiAmount: aiAmountFilter
                 };
             }
 
             function checkAttributeMatch(beneficiary, filters) {
-                // 💡 إضافة التحقق من تطابق الاسم (بشكل غير حساس لحالة الأحرف)
                 const nameMatch = !filters.name || beneficiary.name.toLowerCase().includes(filters.name);
                 const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType;
                 const zeroMatch = !filters.hideZero || beneficiary.neededAmount > 0;
@@ -382,114 +668,18 @@
                 const fromDateMatch = !filters.fromDate || (beneficiary.creationDate && beneficiary.creationDate >= new Date(filters.fromDate).getTime());
                 const toDateMatch = !filters.toDate || (beneficiary.creationDate && beneficiary.creationDate <= new Date(filters.toDate).setHours(23, 59, 59, 999));
 
-                // 💡 إضافة nameMatch إلى الشرط النهائي
-                return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch;
-            }
-
-            // ... (بقية ملف الجافاسكريبت)
-            // The rest of the javascript code remains the same...
-            // Just paste the code inside the <script> tag.
-            // The following functions are not changed:
-            // processFeature, findNearMe, handleLocationSuccess, handleLocationError, handleSortClick,
-            // handleZoomToClick, performFilteringAsync, getCombinedSpatialFilter, applyMapLayerFilter,
-            // populateGovernorateFilter, formatDate, updateSortIcons, renderTablePage,
-            // populateFilters, updatePaginationControls, zoomToAll, handleMapClick, updateSummary,
-            // formatCurrency, createPopupTemplate, showLoadingIndicator, handleDataLoadError,
-            // toggleFeatureSelection, clearAllSelections, highlightSelection, handleRowCheckboxChange,
-            // handleSketchCreate, handleSelectAll, submitAllDonations, handleDonateClick, handleRemoveDonation,
-            // updateTableSelectionVisuals, updateSelectionCount, updateSelectAllCheckboxState, updateRemaining,
-            // toggleSketchMode, getVisibleLayers, updateLayerVisibility
-            // The existing `performFilteringAsync` function already calls `getAttributeFilters` and `checkAttributeMatch`
-            // so no changes are needed there. The logic will automatically pick up the new name filter.
-
-            function processFeature(feature, layerType) {
-                const attrs = feature.attributes;
-                const isCharity = layerType === 'charity';
-                return {
-                    id: `${layerType}_${attrs.objectid}`, name: isCharity ? attrs.charity_name : attrs.full_name,
-                    neededAmount: attrs.how_much_do_you_need || 0, userType: isCharity ? 'Charity' : 'Needy',
-                    helpFields: isCharity ? (attrs.charity_sector || 'General').split(/[,;]/).map(s => s.trim()) : [attrs.type_of_need || 'General'],
-                    email: isCharity ? attrs.enter_your_e_mail : attrs.email, creationDate: attrs.CreationDate || 0,
-                    layerType: layerType, objectId: attrs.objectid, governorate: 'N/A', geometry: feature.geometry
-                };
-            }
-
-            function findNearMe() {
-                if (!navigator.geolocation) {
-                    alert("Geolocation is not supported by this browser.");
-                    return;
+                // التحقق من الفلاتر الرقمية من الـ AI
+                let amountMatch = true;
+                if(filters.aiAmount) {
+                    if (filters.aiAmount.less_than !== undefined && beneficiary.neededAmount >= filters.aiAmount.less_than) {
+                        amountMatch = false;
+                    }
+                    if (filters.aiAmount.greater_than !== undefined && beneficiary.neededAmount <= filters.aiAmount.greater_than) {
+                        amountMatch = false;
+                    }
                 }
-                if (!geometryEngine || !Point || !Graphic || !projection) {
-                    alert("Mapping components are not ready yet. Please try again in a moment.");
-                    return;
-                }
-                showLoadingIndicator(true, "Getting your location...");
-                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-                navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError, options);
-            }
 
-            async function handleLocationSuccess(position) {
-                try {
-                    const coords = position.coords;
-                    const userPoint = new Point({ longitude: coords.longitude, latitude: coords.latitude, spatialReference: { wkid: 4326 } });
-                    if (!projection.isLoaded()) { await projection.load(); }
-                    const projectedPoint = projection.project(userPoint, { wkid: 3857 });
-                    const bufferIn3857 = geometryEngine.buffer(projectedPoint, BufferArea, "kilometers");
-                    nearMeFilterGeometry = projection.project(bufferIn3857, { wkid: 4326 });
-                    if (userLocationGraphic) { runtimeGraphicsLayer.remove(userLocationGraphic); }
-                    userLocationGraphic = new Graphic({ geometry: userPoint, symbol: { type: "simple-marker", style: "circle", color: "#007bff", size: "12px", outline: { color: [255, 255, 255], width: 2 } } });
-                    runtimeGraphicsLayer.add(userLocationGraphic);
-                    mapView.goTo(bufferIn3857.extent.expand(1.2));
-                    performFilteringAsync();
-                } catch (e) {
-                    console.error("Error in handleLocationSuccess:", e);
-                    alert("An error occurred while processing your location. Please check the console (F12) for more details.");
-                } finally {
-                    showLoadingIndicator(false);
-                }
-            }
-
-            function handleLocationError(error) {
-                showLoadingIndicator(false);
-                let message = "An unknown error occurred.";
-                switch (error.code) {
-                    case error.PERMISSION_DENIED: message = "You denied the request for Geolocation."; break;
-                    case error.POSITION_UNAVAILABLE: message = "Location information is unavailable."; break;
-                    case error.TIMEOUT: message = "The request to get user location timed out."; break;
-                }
-                alert(`Error getting location: ${message}`);
-            }
-
-            function handleSortClick() {
-                const column = $(this).data('sort');
-                if (currentSortColumn === column) {
-                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-                } else {
-                    currentSortColumn = column;
-                    currentSortDirection = 'asc';
-                }
-                performFilteringAsync();
-            }
-
-            function handleZoomToClick(e) {
-                e.stopPropagation();
-                const beneficiaryId = $(this).closest('tr').data('id');
-                const beneficiary = allBeneficiaries.find(b => b.id === beneficiaryId);
-                if (beneficiary && beneficiary.geometry) {
-                    mapView.goTo({
-                        target: beneficiary.geometry,
-                        zoom: 15
-                    }).then(() => {
-                        mapView.graphics.add(new Graphic({
-                            geometry: beneficiary.geometry,
-                            symbol: {
-                                type: "simple-marker", style: "circle", color: [255, 255, 0, 0.5],
-                                size: 20, outline: null
-                            }
-                        }));
-                        setTimeout(() => mapView.graphics.removeAll(), 1000);
-                    });
-                }
+                return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch && amountMatch;
             }
 
             function performFilteringAsync() {
@@ -558,20 +748,11 @@
                 });
             }
 
-            function formatDate(timestamp) {
-                if (!timestamp || timestamp === 0) return 'N/A';
-                const d = new Date(timestamp);
-                const datePart = d.toISOString().split('T')[0];
-                const timePart = d.toTimeString().split(' ')[0];
-                return `${datePart}<br><small class="text-muted">${timePart}</small>`;
-            }
-
-            function updateSortIcons() {
-                $('#beneficiariesTable .sort-icon').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
-                if (currentSortColumn !== 'default') {
-                    const iconClass = currentSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
-                    $(`th[data-sort="${currentSortColumn}"] .sort-icon`).removeClass('fa-sort').addClass(iconClass);
-                }
+            function populateFilters() {
+                const allTypes = [...new Set(allBeneficiaries.map(b => b.userType))],
+                      allFields = [...new Set(allBeneficiaries.flatMap(b => b.helpFields.map(f => f.trim())))].sort();
+                $('#roleFilter').html('<option value="">All Types</option>' + allTypes.map(r => `<option value="${r}">${r}</option>`).join(''));
+                $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join(''));
             }
 
             function renderTablePage() {
@@ -610,13 +791,6 @@
                 updateTableSelectionVisuals();
             }
 
-            function populateFilters() {
-                const allTypes = [...new Set(allBeneficiaries.map(b => b.userType))],
-                      allFields = [...new Set(allBeneficiaries.flatMap(b => b.helpFields.map(f => f.trim())))].sort();
-                $('#roleFilter').html('<option value="">All Types</option>' + allTypes.map(r => `<option value="${r}">${r}</option>`).join(''));
-                $('#fieldFilter').html('<option value="">All Fields</option>' + allFields.map(f => `<option value="${f}">${f}</option>`).join(''));
-            }
-
             function updatePaginationControls(totalRows) {
                 const totalPages = Math.ceil(totalRows / rowsPerPage);
                 const paginationFooter = $('#paginationInfo').closest('.card-footer');
@@ -629,37 +803,12 @@
                 $('#paginationInfo').text(`Showing ${startRecord} - ${endRecord} of ${totalRows}`);
             }
 
-            function zoomToAll() {
-                if (Extent) {
-                    const egyptExtent = new Extent({ xmin: 25.0, ymin: 22.0, xmax: 36.0, ymax: 32.0, spatialReference: { wkid: 4326 } });
-                    if (mapView) { mapView.goTo(egyptExtent); }
-                }
-            }
-
-            function handleMapClick(event) {
-                if (isSketchActive) return;
-                mapView.hitTest(event).then(response => {
-                    const graphicResult = response.results.find(r => r.graphic && (r.graphic.layer || r.graphic.isAggregate));
-                    if (!graphicResult) return;
-                    const graphic = graphicResult.graphic;
-                    if (graphic.isAggregate) { mapView.goTo({ target: graphic.geometry, zoom: mapView.zoom + 2 }); return; }
-                    if (graphic.layer && graphic.layer.visible && (graphic.layer.title === "Needies" || graphic.layer.title === "Charities")) {
-                        const layerType = graphic.layer.title === 'Needies' ? 'needy' : 'charity';
-                        toggleFeatureSelection(`${layerType}_${graphic.attributes.objectid}`);
-                    }
-                });
-            }
-
-            function updateSummary() {
-                const tbody = $("#donationSummary tbody");
-                tbody.empty();
-                if (donations.length === 0) {
-                    tbody.html('<tr><td colspan="4" class="text-center text-muted">No donations added yet.</td></tr>');
-                } else {
-                    donations.forEach(d => tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${formatCurrency(d.amount)}</td><td><button class="btn btn-sm btn-outline-danger remove-donation-btn" data-id="${d.id}"><i class="fas fa-trash"></i></button></td></tr>`));
-                }
-                $('#totalDonationsAmount').text(formatCurrency(donations.reduce((sum, d) => sum + d.amount, 0)));
-                updateRemaining();
+            function formatDate(timestamp) {
+                if (!timestamp || timestamp === 0) return 'N/A';
+                const d = new Date(timestamp);
+                const datePart = d.toISOString().split('T')[0];
+                const timePart = d.toTimeString().split(' ')[0];
+                return `${datePart}<br><small class="text-muted">${timePart}</small>`;
             }
 
             function formatCurrency(value) { return (value || 0).toLocaleString("en-US", { style: "currency", currency: "USD" }); }
@@ -698,6 +847,209 @@
                 console.error("Error during data load or analysis:", error);
                 const errorMsg = 'Failed to load or process data. Please check network connection and service status.';
                 $('#beneficiariesTable tbody').html(`<tr><td colspan="8" class="text-center text-danger p-5">${errorMsg}</td></tr>`);
+            }
+
+            function zoomToAll() {
+                if (Extent) {
+                    const egyptExtent = new Extent({ xmin: 25.0, ymin: 22.0, xmax: 36.0, ymax: 32.0, spatialReference: { wkid: 4326 } });
+                    if (mapView) { mapView.goTo(egyptExtent); }
+                }
+            }
+
+            function handleMapClick(event) {
+                if (isSketchActive) return;
+                mapView.hitTest(event).then(response => {
+                    const graphicResult = response.results.find(r => r.graphic && (r.graphic.layer || r.graphic.isAggregate));
+                    if (!graphicResult) return;
+                    const graphic = graphicResult.graphic;
+                    if (graphic.isAggregate) { mapView.goTo({ target: graphic.geometry, zoom: mapView.zoom + 2 }); return; }
+                    if (graphic.layer && graphic.layer.visible && (graphic.layer.title === "Needies" || graphic.layer.title === "Charities")) {
+                        const layerType = graphic.layer.title === 'Needies' ? 'needy' : 'charity';
+                        toggleFeatureSelection(`${layerType}_${graphic.attributes.objectid}`);
+                    }
+                });
+            }
+
+            function handleSortClick() {
+                const column = $(this).data('sort');
+                if (currentSortColumn === column) {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = column;
+                    currentSortDirection = 'asc';
+                }
+                performFilteringAsync();
+            }
+
+            function handleZoomToClick(e) {
+                e.stopPropagation();
+                const beneficiaryId = $(this).closest('tr').data('id');
+                const beneficiary = allBeneficiaries.find(b => b.id === beneficiaryId);
+                if (beneficiary && beneficiary.geometry) {
+                    mapView.goTo({
+                        target: beneficiary.geometry,
+                        zoom: 15
+                    }).then(() => {
+                        mapView.graphics.add(new Graphic({
+                            geometry: beneficiary.geometry,
+                            symbol: {
+                                type: "simple-marker", style: "circle", color: [255, 255, 0, 0.5],
+                                size: 20, outline: null
+                            }
+                        }));
+                        setTimeout(() => mapView.graphics.removeAll(), 1000);
+                    });
+                }
+            }
+
+            function updateSortIcons() {
+                $('#beneficiariesTable .sort-icon').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
+                if (currentSortColumn !== 'default') {
+                    const iconClass = currentSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+                    $(`th[data-sort="${currentSortColumn}"] .sort-icon`).removeClass('fa-sort').addClass(iconClass);
+                }
+            }
+
+            // ✅ دالة findNearMe المحسنة مع رسم دائرة 10 كم
+            function findNearMe() {
+                if (!navigator.geolocation) {
+                    alert("Geolocation is not supported by this browser.");
+                    return;
+                }
+                if (!geometryEngine || !Point || !Graphic || !projection) {
+                    alert("Mapping components are not ready yet. Please try again in a moment.");
+                    return;
+                }
+
+                showLoadingIndicator(true, "Getting your location...");
+                const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 };
+                navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError, options);
+            }
+
+            async function handleLocationSuccess(position) {
+                try {
+                    const coords = position.coords;
+                    const userPoint = new Point({
+                        longitude: coords.longitude,
+                        latitude: coords.latitude,
+                        spatialReference: { wkid: 4326 }
+                    });
+
+                    if (!projection.isLoaded()) {
+                        await projection.load();
+                    }
+
+                    const projectedPoint = projection.project(userPoint, { wkid: 3857 });
+                    const bufferIn3857 = geometryEngine.buffer(projectedPoint, BufferArea, "kilometers");
+                    nearMeFilterGeometry = projection.project(bufferIn3857, { wkid: 4326 });
+
+                    if (userLocationGraphic) {
+                        runtimeGraphicsLayer.removeAll();
+                    }
+
+                    // إضافة رمز موقع المستخدم
+                    userLocationGraphic = new Graphic({
+                        geometry: userPoint,
+                        symbol: {
+                            type: "simple-marker",
+                            style: "circle",
+                            color: "#ff4444",
+                            size: "16px",
+                            outline: { color: [255, 255, 255], width: 3 }
+                        }
+                    });
+                    runtimeGraphicsLayer.add(userLocationGraphic);
+
+                    // إضافة رمز الدائرة للتوضيح
+                    const bufferGraphic = new Graphic({
+                        geometry: nearMeFilterGeometry,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [0, 123, 255, 0.1],
+                            outline: { color: [0, 123, 255, 0.8], width: 2 }
+                        }
+                    });
+                    runtimeGraphicsLayer.add(bufferGraphic);
+
+                    mapView.goTo({
+                        target: bufferIn3857.extent.expand(1.5),
+                        duration: 1000
+                    });
+
+                    // تحديث UI
+                    updateNearMeStatus(true, coords);
+                    performFilteringAsync();
+
+                    console.log(`Location found: ${coords.latitude}, ${coords.longitude} (accuracy: ${coords.accuracy}m)`);
+
+                } catch (e) {
+                    console.error("Error in handleLocationSuccess:", e);
+                    alert("حدث خطأ أثناء معالجة موقعك. يرجى المحاولة مرة أخرى.");
+                } finally {
+                    showLoadingIndicator(false);
+                }
+            }
+
+            function handleLocationError(error) {
+                showLoadingIndicator(false);
+
+                let message = "حدث خطأ غير معروف.";
+                let suggestion = "";
+
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        message = "تم رفض طلب الوصول إلى الموقع.";
+                        suggestion = "يرجى السماح بالوصول إلى الموقع في إعدادات المتصفح.";
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        message = "معلومات الموقع غير متاحة.";
+                        suggestion = "تأكد من تفعيل GPS أو خدمات الموقع.";
+                        break;
+                    case error.TIMEOUT:
+                        message = "انتهت مهلة الحصول على الموقع.";
+                        suggestion = "تأكد من الاتصال بالإنترنت وحاول مرة أخرى.";
+                        break;
+                }
+
+                alert(`خطأ في تحديد الموقع: ${message}\n${suggestion}`);
+
+                if ($('#ai-chat-window').is(':visible')) {
+                    $('#ai-chat-messages').append(`
+                        <div class="ai-message error">
+                            <i class="fas fa-location-arrow me-2"></i>
+                            <strong>Location Error</strong><br>
+                            ${message} ${suggestion}
+                            <div class="mt-2">
+                                <button type="button" class="suggestion-btn btn btn-outline-primary btn-sm"
+                                        onclick="findNearMe()">🔄 Try Again</button>
+                            </div>
+                        </div>
+                    `);
+                    scrollToBottom();
+                }
+            }
+
+            function updateNearMeStatus(success, coords = null) {
+                if (!success) return;
+
+                $('#findNearMeBtn')
+                    .removeClass('btn-outline-info')
+                    .addClass('btn-info')
+                    .html('<i class="fas fa-check-circle"></i> Location Found');
+
+                if ($('#ai-chat-window').is(':visible')) {
+                    $('#ai-chat-messages').append(`
+                        <div class="ai-message success">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            <strong>Location Found!</strong><br>
+                            Searching for cases within 10km of your location...
+                            <small class="d-block mt-1 text-muted">
+                                Accuracy: ${coords ? Math.round(coords.accuracy) + 'm' : 'Unknown'}
+                            </small>
+                        </div>
+                    `);
+                    scrollToBottom();
+                }
             }
 
             function toggleFeatureSelection(id) {
@@ -837,6 +1189,18 @@
                 updateSummary();
             }
 
+            function updateSummary() {
+                const tbody = $("#donationSummary tbody");
+                tbody.empty();
+                if (donations.length === 0) {
+                    tbody.html('<tr><td colspan="4" class="text-center text-muted">No donations added yet.</td></tr>');
+                } else {
+                    donations.forEach(d => tbody.append(`<tr><td>${d.name}</td><td>${d.userType}</td><td>${formatCurrency(d.amount)}</td><td><button class="btn btn-sm btn-outline-danger remove-donation-btn" data-id="${d.id}"><i class="fas fa-trash"></i></button></td></tr>`));
+                }
+                $('#totalDonationsAmount').text(formatCurrency(donations.reduce((sum, d) => sum + d.amount, 0)));
+                updateRemaining();
+            }
+
             function updateTableSelectionVisuals() {
                 $(".row-checkbox").each(function () {
                     $(this).prop("checked", selectedFeatures.has($(this).data("id")));
@@ -883,6 +1247,369 @@
                 if (neediesLayer) neediesLayer.visible = "needy" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
                 if (charitiesLayer) charitiesLayer.visible = "charity" === $('input[name="layerFilter"]:checked').val() || "both" === $('input[name="layerFilter"]:checked').val();
             }
+
+            // ✅ دوال الـ AI Chat المحدثة والمحسنة
+            function initializeChat() {
+                $('#ai-chat-messages').append(`
+                    <div class="ai-message">
+                        <strong>🤖 AI Search Assistant</strong><br>
+                        I can help you find donation opportunities quickly! Try these:
+                        <div class="suggestions-container mt-3">
+                            <button type="button" class="suggestion-btn btn btn-outline-primary btn-sm me-1 mb-1"
+                                    data-suggestion="Medical cases in Cairo under 1000">🏥 Medical in Cairo < 1000</button>
+                            <button type="button" class="suggestion-btn btn btn-outline-success btn-sm me-1 mb-1"
+                                    data-suggestion="Education needs in Alexandria">📚 Education in Alexandria</button>
+                            <button type="button" class="suggestion-btn btn btn-outline-info btn-sm me-1 mb-1"
+                                    data-suggestion="Food assistance over 500">🍞 Food assistance > 500</button>
+                            <button type="button" class="suggestion-btn btn btn-outline-warning btn-sm me-1 mb-1"
+                                    data-suggestion="Housing needs">🏠 Housing needs</button>
+                            <button type="button" class="suggestion-btn btn btn-outline-danger btn-sm me-1 mb-1"
+                                    data-suggestion="أقرب حالات من مكاني">📍 أقرب حالات</button>
+                            <button type="button" class="suggestion-btn btn btn-outline-secondary btn-sm me-1 mb-1"
+                                    data-suggestion="عايز الحالات في المنوفية">🏛️ حالات المنوفية</button>
+                        </div>
+                        <small class="text-muted mt-2 d-block">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            You can search in Arabic or English. Just describe what you're looking for!
+                        </small>
+                    </div>
+                `);
+                scrollToBottom();
+            }
+
+            function handleAiSearch(e) {
+                e.preventDefault();
+                const userQuery = $('#ai-chat-input').val().trim();
+                if (!userQuery) return;
+
+                if (userQuery.length > 500) {
+                    $('#ai-chat-messages').append(`
+                        <div class="ai-message error">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Your query is too long. Please keep it under 500 characters.
+                        </div>
+                    `);
+                    scrollToBottom();
+                    return;
+                }
+
+                $('#ai-chat-messages').append(`<div class="user-message">${escapeHtml(userQuery)}</div>`);
+                $('#ai-chat-input').val('');
+                scrollToBottom();
+
+                const thinkingMessage = $(`
+                    <div class="ai-message thinking">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2 thinking-animation" role="status"></div>
+                            <span>Analyzing your request...</span>
+                        </div>
+                        <div class="progress mt-2" style="height: 3px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 style="width: 0%;" id="thinking-progress"></div>
+                        </div>
+                    </div>
+                `);
+                $('#ai-chat-messages').append(thinkingMessage);
+                scrollToBottom();
+
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress > 90) progress = 90;
+                    $('#thinking-progress').css('width', progress + '%');
+                }, 500);
+
+                const timeoutId = setTimeout(() => {
+                    if ($('.ai-message.thinking').length > 0) {
+                        clearInterval(progressInterval);
+                        $('.ai-message.thinking').remove();
+                        $('#ai-chat-messages').append(`
+                            <div class="ai-message error">
+                                <i class="fas fa-clock me-2"></i>
+                                <strong>Request timed out</strong><br>
+                                The AI service is taking longer than expected. Please try:
+                                <ul class="mb-2 mt-2 ps-4">
+                                    <li>A simpler query (e.g., "medical Cairo")</li>
+                                    <li>Check if Ollama is running</li>
+                                    <li>Use manual filters instead</li>
+                                </ul>
+                            </div>
+                        `);
+                        scrollToBottom();
+                    }
+                }, 30000);
+
+                $.ajax({
+                    url: "/Donate/SearchByAI",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(userQuery),
+                    timeout: 30000,
+                    success: function(response) {
+                        clearTimeout(timeoutId);
+                        clearInterval(progressInterval);
+                        $('.ai-message.thinking').remove();
+
+                        try {
+                            const aiFilters = JSON.parse(response);
+
+                            if (!isValidAIResponse(aiFilters)) {
+                                throw new Error("Invalid AI response structure");
+                            }
+
+                            const detectedFilters = buildFilterSummary(aiFilters);
+                            $('#ai-chat-messages').append(`
+                                <div class="ai-message success">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-check-circle me-2 mt-1 text-success"></i>
+                                        <div>
+                                            <strong>Found matching criteria!</strong><br>
+                                            <span class="badge bg-success me-1">✓ Filters Applied</span>
+                                            <small class="text-muted d-block mt-1">${detectedFilters}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+
+                            applyAIFilters(aiFilters);
+
+                            setTimeout(() => {
+                                if (filteredBeneficiaries.length === 0) {
+                                    $('#ai-chat-messages').append(`
+                                        <div class="ai-message">
+                                            <i class="fas fa-search me-2"></i>
+                                            No exact matches found. Try:
+                                            <div class="mt-2">
+                                                <button type="button" class="suggestion-btn btn btn-outline-secondary btn-sm me-1"
+                                                        data-suggestion="show all">Show all cases</button>
+                                                <button type="button" class="suggestion-btn btn btn-outline-primary btn-sm"
+                                                        data-suggestion="medical cases">Medical cases only</button>
+                                            </div>
+                                        </div>
+                                    `);
+                                } else {
+                                    $('#ai-chat-messages').append(`
+                                        <div class="ai-message">
+                                            <i class="fas fa-thumbs-up me-2"></i>
+                                            Found <strong>${filteredBeneficiaries.length}</strong> matching cases!
+                                            Scroll down to see the results.
+                                        </div>
+                                    `);
+                                }
+                                scrollToBottom();
+                            }, 1000);
+
+                            setTimeout(() => $('#ai-chat-window').fadeOut(), 4000);
+
+                        } catch (e) {
+                            console.error("AI Response parsing error:", e, "Response:", response);
+                            $('#ai-chat-messages').append(`
+                                <div class="ai-message error">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    <strong>Response parsing error</strong><br>
+                                    I received a response but couldn't understand it.
+                                    <small class="d-block mt-1 text-muted">Try using simpler terms or manual filters above.</small>
+                                </div>
+                            `);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        clearTimeout(timeoutId);
+                        clearInterval(progressInterval);
+                        $('.ai-message.thinking').remove();
+
+                        let errorMessage = "I'm having trouble processing your request.";
+                        let suggestion = "You can use the manual filters above instead.";
+                        let icon = "fas fa-robot";
+
+                        if (xhr.status === 0) {
+                            errorMessage = "Unable to connect to the AI service.";
+                            suggestion = "Please check your internet connection.";
+                            icon = "fas fa-wifi";
+                        } else if (xhr.status === 503) {
+                            errorMessage = "AI service is currently unavailable.";
+                            suggestion = "Please try again later or use manual filters.";
+                            icon = "fas fa-server";
+                        } else if (xhr.status === 408 || status === 'timeout') {
+                            errorMessage = "The request timed out.";
+                            suggestion = "Try using a simpler query like 'medical Cairo'.";
+                            icon = "fas fa-clock";
+                        } else if (xhr.status === 400) {
+                            try {
+                                const errorResponse = JSON.parse(xhr.responseText);
+                                errorMessage = errorResponse.error || "Invalid request format.";
+                            } catch (e) {
+                                errorMessage = "Invalid request format.";
+                            }
+                            icon = "fas fa-exclamation-triangle";
+                        }
+
+                        $('#ai-chat-messages').append(`
+                            <div class="ai-message error">
+                                <i class="${icon} me-2"></i>
+                                <strong>${errorMessage}</strong><br>
+                                <small class="text-muted">${suggestion}</small>
+                            </div>
+                        `);
+                    },
+                    complete: function() {
+                        scrollToBottom();
+                    }
+                });
+            }
+
+            function isValidAIResponse(response) {
+                if (!response || typeof response !== 'object') return false;
+                const validKeys = ['location', 'need_type', 'amount_less_than', 'amount_greater_than'];
+                const responseKeys = Object.keys(response);
+                return responseKeys.some(key => validKeys.includes(key) && response[key] !== null && response[key] !== undefined && response[key] !== '');
+            }
+
+            function buildFilterSummary(filters) {
+                const summary = [];
+
+                if (filters.location === "NEAR_ME") {
+                    summary.push(`📍 Location: Near your location`);
+                } else if (filters.location) {
+                    summary.push(`📍 Location: ${filters.location}`);
+                }
+
+                if (filters.need_type) summary.push(`🎯 Type: ${filters.need_type}`);
+                if (filters.amount_less_than !== undefined) summary.push(`💰 Max: ${filters.amount_less_than} EGP`);
+                if (filters.amount_greater_than !== undefined) summary.push(`💰 Min: ${filters.amount_greater_than} EGP`);
+
+                return summary.length > 0 ? summary.join(' • ') : 'General search applied';
+            }
+
+            function applyAIFilters(aiFilters) {
+                clearAllFilters(false);
+
+                // ✅ معالجة خاصة لطلبات "Near Me"
+                if (aiFilters.location === "NEAR_ME") {
+                    findNearMe();
+
+                    $('#ai-chat-messages').append(`
+                        <div class="ai-message success">
+                            <i class="fas fa-location-arrow me-2"></i>
+                            <strong>Searching for nearby cases...</strong><br>
+                            <small class="text-muted">Please allow location access when prompted.</small>
+                        </div>
+                    `);
+                    scrollToBottom();
+                    return;
+                }
+
+                // معالجة الفلاتر العادية
+                if (aiFilters.location && typeof aiFilters.location === 'string') {
+                    const $locationFilter = $('#governorateFilter');
+                    let found = false;
+
+                    $locationFilter.find('option').each(function() {
+                        if ($(this).val() === aiFilters.location) {
+                            $locationFilter.val(aiFilters.location);
+                            found = true;
+                            return false;
+                        }
+                    });
+
+                    if (!found) {
+                        $locationFilter.find('option').each(function() {
+                            const optionText = $(this).text().toLowerCase();
+                            const locationValue = aiFilters.location.toLowerCase();
+                            if (optionText.includes(locationValue) || locationValue.includes(optionText)) {
+                                $locationFilter.val($(this).val());
+                                found = true;
+                                return false;
+                            }
+                        });
+                    }
+
+                    if (!found) {
+                        console.warn('Location not found in dropdown:', aiFilters.location);
+                    }
+                }
+
+                if (aiFilters.need_type && typeof aiFilters.need_type === 'string') {
+                    const $fieldFilter = $('#fieldFilter');
+                    const needType = aiFilters.need_type.toLowerCase().trim();
+                    let found = false;
+
+                    $fieldFilter.find('option').each(function() {
+                        const optionText = $(this).text().toLowerCase();
+                        const optionValue = $(this).val().toLowerCase();
+
+                        if (optionText === needType || optionValue === needType) {
+                            $fieldFilter.val($(this).val());
+                            found = true;
+                            return false;
+                        }
+                    });
+
+                    if (!found) {
+                        $fieldFilter.find('option').each(function() {
+                            const optionText = $(this).text().toLowerCase();
+                            if (optionText.includes(needType) || needType.includes(optionText)) {
+                                $fieldFilter.val($(this).val());
+                                found = true;
+                                return false;
+                            }
+                        });
+                    }
+                }
+
+                aiAmountFilter = {};
+                if (typeof aiFilters.amount_less_than === 'number' && aiFilters.amount_less_than > 0 && aiFilters.amount_less_than <= 1000000) {
+                    aiAmountFilter.less_than = aiFilters.amount_less_than;
+                }
+                if (typeof aiFilters.amount_greater_than === 'number' && aiFilters.amount_greater_than >= 0 && aiFilters.amount_greater_than <= 1000000) {
+                    aiAmountFilter.greater_than = aiFilters.amount_greater_than;
+                }
+
+                if (aiAmountFilter.less_than && aiAmountFilter.greater_than &&
+                    aiAmountFilter.greater_than >= aiAmountFilter.less_than) {
+                    delete aiAmountFilter.less_than;
+                    delete aiAmountFilter.greater_than;
+                }
+
+                performFilteringAsync();
+            }
+
+            function scrollToBottom() {
+                const messagesContainer = $('#ai-chat-messages')[0];
+                if (messagesContainer) {
+                    setTimeout(() => {
+                        messagesContainer.scrollTo({
+                            top: messagesContainer.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }, 100);
+                }
+            }
+
+            function escapeHtml(text) {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, m => map[m]);
+            }
+
+            // اختصارات لوحة المفاتيح
+            $('#ai-chat-input').on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    $('#ai-chat-window').fadeOut();
+                }
+            });
+
+            // إغلاق عند النقر خارج النافذة
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('#ai-chat-widget').length && $('#ai-chat-window').is(':visible')) {
+                    $('#ai-chat-window').fadeOut();
+                }
+            });
         });
     </script>
 }
