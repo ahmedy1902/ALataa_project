@@ -114,7 +114,7 @@
         animation: pulse 1.5s ease-in-out infinite;
     }
 
-        keyframes pulse {
+    keyframes pulse {
         0%
 
     {
@@ -134,7 +134,14 @@
     #ai-chat-input {
         border-radius: 20px;
         border: 1px solid #dee2e6;
-        padding: 8px 16px;
+        padding: 12px 16px;
+        min-height: 45px;
+        max-height: 120px;
+        resize: none;
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.4;
+        overflow-y: auto;
     }
 
         #ai-chat-input:focus {
@@ -167,8 +174,9 @@
         </div>
         <div id="ai-chat-input-container" class="p-3 border-top">
             <form id="ai-chat-form" class="d-flex align-items-center gap-2">
-                <input type="text" id="ai-chat-input" class="form-control"
-                       placeholder="Type your search request..." maxlength="500">
+
+<textarea id="ai-chat-input" class="form-control" rows="2"
+          placeholder="Type your search request..." maxlength="500"></textarea>
                 <button type="submit" class="btn btn-primary btn-send">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -402,7 +410,18 @@
                 $(document).on("click", ".donate-btn", handleDonateClick);
                 $(document).on("click", ".remove-donation-btn", handleRemoveDonation);
                 $('#submitAllBtn').on("click", submitAllDonations);
+                        $('#ai-chat-input').on('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
 
+        // إضافة هذا أيضاً لمنع إرسال الرسالة عند الضغط على Enter
+        $('#ai-chat-input').on('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                $('#ai-chat-form').submit();
+            }
+        });
                 $('#nameSearch').on('keyup', function() {
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
@@ -463,7 +482,7 @@
 
                 // Clear location and graphics
                 if (userLocationGraphic && runtimeGraphicsLayer) {
-                    runtimeGraphicsLayer.removeAll(); // Clear all graphics including buffer
+                    runtimeGraphicsLayer.removeAll();
                     userLocationGraphic = null;
                 }
 
@@ -604,10 +623,10 @@
                 });
             }
 
-            // ✅ Load data function with debugging
+            // ✅ Updated load data function to use ENG_Name field
             function loadAndProcessAllData() {
                 showLoadingIndicator(true, "Performing Spatial Analysis & Loading Data...");
-                const govPromise = governorateLayer.queryFeatures({ where: "1=1", outFields: ["name"], returnGeometry: true });
+                const govPromise = governorateLayer.queryFeatures({ where: "1=1", outFields: ["ENG_Name"], returnGeometry: true });
                 const neediesPromise = neediesLayer.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true });
                 const charitiesPromise = charitiesLayer.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true });
 
@@ -619,13 +638,12 @@
                             const containingGov = govResults.features.find(govFeature => geometryEngine.contains(govFeature.geometry, feature.geometry));
                             const layerType = feature.layer.title === 'Needies' ? 'needy' : 'charity';
                             const processed = processFeature(feature, layerType);
-                            processed.governorate = containingGov ? containingGov.attributes.name : 'N/A';
+                            processed.governorate = containingGov ? containingGov.attributes.ENG_Name : 'N/A';
                             return processed;
                         });
                         populateFilters();
                         performFilteringAsync();
 
-                        // ✅ Add debugging info
                         setTimeout(() => {
                             debugGovernoratesInfo();
                         }, 1000);
@@ -634,7 +652,15 @@
                     .finally(() => showLoadingIndicator(false));
             }
 
-            // ✅ Debugging function for governorates
+            // ✅ Updated populate governorate filter to use ENG_Name
+            function populateGovernorateFilter(govFeatures) {
+                const select = $('#governorateFilter');
+                govFeatures.map(feature => feature.attributes.ENG_Name).filter(name => name).sort().forEach(govName => {
+                    governorates[govName] = { geometry: govFeatures.find(f => f.attributes.ENG_Name === govName).geometry };
+                    select.append(`<option value="${govName}">${govName}</option>`);
+                });
+            }
+
             function debugGovernoratesInfo() {
                 console.log("🏛️ Available governorates in data:");
                 const govSet = new Set();
@@ -685,7 +711,6 @@
                 };
             }
 
-            // ✅ Attribute matching function with debugging
             function checkAttributeMatch(beneficiary, filters) {
                 const nameMatch = !filters.name || beneficiary.name.toLowerCase().includes(filters.name);
                 const layerMatch = filters.layerType === 'both' || beneficiary.layerType === filters.layerType;
@@ -706,14 +731,13 @@
                     }
                 }
 
-                // Add governorate check with debugging
+                // Add governorate check
                 let governorateMatch = true;
                 const selectedGovernorate = $('#governorateFilter').val();
                 if (selectedGovernorate) {
                     governorateMatch = beneficiary.governorate === selectedGovernorate;
 
-                    // debugging for governorates
-                    if (!governorateMatch && Math.random() < 0.01) { // print 1% of results only
+                    if (!governorateMatch && Math.random() < 0.01) {
                         console.log(`🏛️ Governorate mismatch: "${beneficiary.governorate}" vs selected "${selectedGovernorate}"`);
                     }
                 }
@@ -721,13 +745,11 @@
                 return nameMatch && layerMatch && zeroMatch && roleMatch && fieldMatch && fromDateMatch && toDateMatch && amountMatch && governorateMatch;
             }
 
-            // ✅ Filtering function with detailed debugging
             function performFilteringAsync() {
                 showLoadingIndicator(true, "Applying filters...");
                 setTimeout(() => {
                     updateLayerVisibility();
 
-                    // Print applied filters
                     const attributeFilters = getAttributeFilters();
                     console.log("🔍 Applied filters:", attributeFilters);
                     console.log("📊 Total beneficiaries:", allBeneficiaries.length);
@@ -739,7 +761,6 @@
                         const spatialFilter = getCombinedSpatialFilter();
                         applyMapLayerFilter(spatialFilter);
 
-                        // Print spatial filter information
                         if (spatialFilter) {
                             console.log("🗺️ Spatial filter applied");
                         } else {
@@ -802,14 +823,6 @@
                 const filter = geometry ? { geometry } : null;
                 if (neediesLayer) neediesLayer.filter = filter;
                 if (charitiesLayer) charitiesLayer.filter = filter;
-            }
-
-            function populateGovernorateFilter(govFeatures) {
-                const select = $('#governorateFilter');
-                govFeatures.map(feature => feature.attributes.name).sort().forEach(govName => {
-                    governorates[govName] = { geometry: govFeatures.find(f => f.attributes.name === govName).geometry };
-                    select.append(`<option value="${govName}">${govName}</option>`);
-                });
             }
 
             function populateFilters() {
@@ -974,7 +987,6 @@
                 }
             }
 
-            // ✅ Enhanced findNearMe function with 10km circle rendering
             function findNearMe() {
                 if (!navigator.geolocation) {
                     alert("Geolocation is not supported by this browser.");
@@ -1011,7 +1023,6 @@
                         runtimeGraphicsLayer.removeAll();
                     }
 
-                    // Add user location marker
                     userLocationGraphic = new Graphic({
                         geometry: userPoint,
                         symbol: {
@@ -1024,7 +1035,6 @@
                     });
                     runtimeGraphicsLayer.add(userLocationGraphic);
 
-                    // Add circle symbol for illustration
                     const bufferGraphic = new Graphic({
                         geometry: nearMeFilterGeometry,
                         symbol: {
@@ -1040,7 +1050,6 @@
                         duration: 1000
                     });
 
-                    // Update UI
                     updateNearMeStatus(true, coords);
                     performFilteringAsync();
 

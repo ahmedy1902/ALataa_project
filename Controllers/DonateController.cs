@@ -3,14 +3,16 @@ using Accounts.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 public class DonateController : Controller
 {
@@ -19,15 +21,17 @@ public class DonateController : Controller
     private readonly ArcGisSettings _arcGisSettings;
     private readonly IConfiguration _config;
     private readonly ILogger<DonateController> _logger;
+    private readonly HttpClient _httpClient;
 
     public DonateController(UserManager<IdentityUser> userManager, ArcGisService arcGisService, IOptions<ArcGisSettings> settings,
-        IConfiguration config, ILogger<DonateController> logger)
+        IConfiguration config, ILogger<DonateController> logger , HttpClient httpClient)
     {
         _userManager = userManager;
         _arcGisService = arcGisService;
         _arcGisSettings = settings.Value;
         _config = config;
         _logger = logger;
+        _httpClient = httpClient;
     }
 
     [HttpGet]
@@ -143,11 +147,6 @@ public class DonateController : Controller
         return Json(new { success = true, updated = results, totalDonated });
     }
 
-    public class OllamaResponse
-    {
-        public string response { get; set; }
-    }
-
     [HttpPost]
     [Authorize(Roles = "Donor")]
     public async Task<IActionResult> SearchByAI([FromBody] string userQuery)
@@ -161,36 +160,54 @@ public class DonateController : Controller
 
         string ollamaUrl = "http://localhost:11434/api/generate";
 
-        // ✅ Prompt محسن جداً مع أمثلة أكثر ووضوح أكبر
         string prompt = $@"
 You are an intelligent assistant that extracts search filters for Egyptian donation cases.
 
 IMPORTANT RULES:
 1. If user asks for ""near me"", ""closest"", ""أقرب"", ""من مكاني"", set location to ""NEAR_ME""
-2. For Egyptian governorates, use EXACT names from this list:
-   - Al Qahirah (القاهرة, Cairo)
-   - Al Jizah (الجيزة, Giza)  
-   - Al Iskandariyah (الإسكندرية, Alexandria)
-   - Al Minufiyah (المنوفية, Menoufia)
-   - Al Qalyubiyah (القليوبية, Qalyubia)
-   - Al Gharbiyah (الغربية, Gharbia)
-   - Ad Daqahliyah (الدقهلية, Dakahlia)
-   - Ash Sharqiyah (الشرقية, Sharqia)
-   - Al Buhayrah (البحيرة, Beheira)
-   - Kafr ash Shaykh (كفر الشيخ)
-   - Dumyat (دمياط, Damietta)
-   - Al Isma`iliyah (الإسماعيلية, Ismailia)
-   - As Suways (السويس, Suez)
-   - Bur Sa`id (بورسعيد, Port Said)
+2. For Egyptian governorates, use EXACT English names from this list ONLY:
+   - Alexandria (الإسكندرية, اسكندرية)
+   - Aswan (أسوان)
+   - Asyut (أسيوط)
+   - Beheira (البحيرة)
+   - Beni Suef (بني سويف)
+   - Cairo (القاهرة)
+   - Dakahlia (الدقهلية)
+   - Damietta (دمياط)
+   - Faiyum (الفيوم)
+   - Gharbia (الغربية)
+   - Giza (الجيزة)
+   - Ismailia (الإسماعيلية)
+   - Kafr El Sheikh (كفر الشيخ)
+   - Luxor (الأقصر)
+   - Matrouh (مطروح)
+   - Menofia (المنوفية)
+   - Minya (المنيا)
+   - New Valley (الوادي الجديد)
+   - North Sinai (شمال سيناء)
+   - Port Said (بورسعيد)
+   - Qalyubia (القليوبية)
+   - Qena (قنا)
+   - Red Sea (البحر الأحمر)
+   - Sharqia (الشرقية)
+   - Sohag (سوهاج)
+   - South Sinai (جنوب سيناء)
+   - Suez (السويس)
 
 3. For need types, use: medical, education, food, housing, clothing
 
+4. For amounts, use proper numbers without currency symbols:
+   - ""under 1000"" → amount_less_than: 1000
+   - ""over 500"" → amount_greater_than: 500
+   - ""اقل من 5000"" → amount_less_than: 5000
+   - ""اكثر من 1000"" → amount_greater_than: 1000
+
 EXAMPLES:
-""Medical cases in Cairo"" → {{""location"": ""Al Qahirah"", ""need_type"": ""medical""}}
-""عايز الحالات في المنوفية"" → {{""location"": ""Al Minufiyah"", ""need_type"": null}}
+""Medical cases in Cairo under 1000"" → {{""location"": ""Cairo"", ""need_type"": ""medical"", ""amount_less_than"": 1000}}
+""عايز الحالات في المنوفية اقل من 5000"" → {{""location"": ""Menofia"", ""need_type"": null, ""amount_less_than"": 5000}}
 ""أقرب حالات من مكاني"" → {{""location"": ""NEAR_ME"", ""need_type"": null}}
-""find nearest cases"" → {{""location"": ""NEAR_ME"", ""need_type"": null}}
-""education under 1000"" → {{""need_type"": ""education"", ""amount_less_than"": 1000}}
+""cases in Gharbia over 500"" → {{""location"": ""Gharbia"", ""need_type"": null, ""amount_greater_than"": 500}}
+""تعليم في الغربية اكثر من 2000"" → {{""location"": ""Gharbia"", ""need_type"": ""education"", ""amount_greater_than"": 2000}}
 
 User Request: ""{userQuery}""
 
@@ -204,146 +221,156 @@ Return ONLY valid JSON:
 
 JSON:";
 
-        var payload = new
-        {
-            model = "llama3:latest",
-            prompt = prompt,
-            format = "json",
-            stream = false,
-            options = new
-            {
-                temperature = 0.1,
-                top_p = 0.8,
-                num_predict = 100,
-stop = new[] { "\n\n", "}" + "\n", "```" }
-            }
-            };
         try
         {
-            using (var httpClient = new HttpClient())
+            var requestData = new
             {
-                httpClient.Timeout = TimeSpan.FromSeconds(30);
+                model = "llama3:latest",
+                prompt = prompt,
+                stream = false,
+                options = new { temperature = 0.1 }
+            };
 
-                var jsonPayload = JsonSerializer.Serialize(payload);
-                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+            var jsonData = JsonSerializer.Serialize(requestData);
+            var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
-                _logger.LogInformation("Sending AI request for query: {query}", userQuery);
+            _logger.LogInformation($"Sending AI request for query: {userQuery}");
 
-                var response = await httpClient.PostAsync(ollamaUrl, content);
-                var responseBody = await response.Content.ReadAsStringAsync();
+            var response = await _httpClient.PostAsync(ollamaUrl, content);
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"Ollama raw response: {responseContent}");
 
-                _logger.LogInformation("Ollama raw response: {response}", responseBody);
+                var ollamaResponse = JsonSerializer.Deserialize<OllamaResponse>(responseContent);
+                var cleanedJson = CleanJsonResponse(ollamaResponse.response);
+                _logger.LogInformation($"Cleaned JSON: {cleanedJson}");
 
-                if (response.IsSuccessStatusCode)
+                // ✅ استخدام دالة التحقق والتنظيف
+                var validatedJson = ValidateAndCleanAIResponse(cleanedJson, userQuery);
+                if (!string.IsNullOrEmpty(validatedJson))
                 {
-                    var ollamaResponse = JsonSerializer.Deserialize<OllamaResponse>(responseBody);
-
-                    if (!string.IsNullOrEmpty(ollamaResponse?.response))
-                    {
-                        string cleanJson = CleanJsonResponse(ollamaResponse.response);
-                        _logger.LogInformation("Cleaned JSON: {json}", cleanJson);
-
-                        var validatedResponse = ValidateAndCleanAIResponse(cleanJson, userQuery);
-
-                        if (validatedResponse != null)
-                        {
-                            _logger.LogInformation("Successfully processed AI query");
-                            return Ok(validatedResponse);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("AI response validation failed for query: {query}", userQuery);
-                            return BadRequest("Could not extract valid search criteria from your request.");
-                        }
-                    }
-                    return BadRequest("AI returned empty response");
+                    _logger.LogInformation($"Validated JSON: {validatedJson}");
+                    _logger.LogInformation("Successfully processed AI query");
+                    return Ok(validatedJson);
                 }
                 else
                 {
-                    _logger.LogError("Ollama error: {status} - {error}", response.StatusCode, responseBody);
-                    return StatusCode(500, $"AI service error: {response.StatusCode}");
+                    _logger.LogWarning("AI response validation failed, returning empty filter");
+                    return Ok("{}");
                 }
+            }
+            else
+            {
+                _logger.LogError($"Ollama API returned error: {response.StatusCode}");
+                return StatusCode(503, new { error = "AI service temporarily unavailable" });
             }
         }
         catch (TaskCanceledException)
         {
-            return StatusCode(408, "AI request timed out");
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "Cannot connect to Ollama");
-            return StatusCode(503, "AI service unavailable");
+            _logger.LogError("AI request timed out");
+            return StatusCode(408, new { error = "Request timed out" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected AI error");
-            return StatusCode(500, "Internal AI error");
+            _logger.LogError($"Error in AI search: {ex.Message}");
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
-
-    // ✅ دالة تنظيف الـ JSON محسنة
     private string CleanJsonResponse(string response)
     {
-        if (string.IsNullOrEmpty(response)) return response;
+        if (string.IsNullOrWhiteSpace(response))
+            return "{}";
 
-        response = response.Trim();
+        // Remove markdown code block markers and extra whitespace
+        var cleaned = response.Trim()
+            .Replace("```", "") // Fixed the issue by ensuring the string is properly closed
+            .Replace("```", "")
+            .Trim();
 
-        // Remove any comments or extra text
-        if (response.Contains("```json"))
+        // Find JSON object boundaries
+        int startIndex = cleaned.IndexOf('{');
+        int lastIndex = cleaned.LastIndexOf('}');
+
+        if (startIndex >= 0 && lastIndex >= startIndex)
         {
-            int startIndex = response.IndexOf("```json") + 7; // Skip the "```json" marker
-            response = response.Substring(startIndex);
-
-            if (response.Contains("```"))
-            {
-                int endIndex = response.IndexOf("```");
-                response = response.Substring(0, endIndex);
-            }
+            cleaned = cleaned.Substring(startIndex, lastIndex - startIndex + 1);
         }
 
-        // Find the JSON boundaries
-        int jsonStart = response.IndexOf('{');
-        int jsonEnd = response.LastIndexOf('}');
+        // Additional cleaning for text before and after JSON
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"^[^{]*", "");
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[^}]*$", "");
 
-        if (jsonStart >= 0 && jsonEnd > jsonStart)
-        {
-            response = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-        }
-
-        return response.Trim();
+        return cleaned;
     }
+
+    private string ؤ(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+            return "{}";
+
+        // Remove markdown code block markers and extra whitespace
+        var cleaned = response.Trim()
+.Replace("```", "")
+.Replace("```", "")
+.Trim();
+
+        // Find JSON object boundaries
+        int startIndex = cleaned.IndexOf('{');
+        int lastIndex = cleaned.LastIndexOf('}');
+
+        if (startIndex >= 0 && lastIndex >= startIndex)
+        {
+            cleaned = cleaned.Substring(startIndex, lastIndex - startIndex + 1);
+        }
+
+        return cleaned;
+    }
+
+    public class OllamaResponse
+    {
+        public string response { get; set; }
+        public bool done { get; set; }
+    }
+
 
     // ✅ دالة Validation محسنة جداً
     private string ValidateAndCleanAIResponse(string aiResponse, string originalQuery)
     {
         try
         {
+            _logger.LogInformation($"Validating AI response: {aiResponse}");
+
             var filters = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(aiResponse);
-            if (filters == null) return null;
+            if (filters == null)
+            {
+                _logger.LogWarning("Failed to deserialize AI response");
+                return null;
+            }
 
             var cleanedFilters = new Dictionary<string, object>();
             bool hasValidFilter = false;
 
-            // ✅ معالجة خاصة لطلبات "Near Me"
+            // معالجة الموقع
             if (filters.ContainsKey("location") && filters["location"].ValueKind == JsonValueKind.String)
             {
                 var location = filters["location"].GetString()?.Trim();
                 if (!string.IsNullOrEmpty(location))
                 {
-                    // التحقق من طلبات "Near Me"
                     if (IsNearMeRequest(location, originalQuery))
                     {
                         cleanedFilters["location"] = "NEAR_ME";
                         hasValidFilter = true;
+                        _logger.LogInformation("Location set to NEAR_ME");
                     }
                     else
                     {
-                        // تطبيع أسماء المحافظات
                         location = NormalizeEgyptianGovernorate(location);
                         if (!string.IsNullOrEmpty(location))
                         {
                             cleanedFilters["location"] = location;
                             hasValidFilter = true;
+                            _logger.LogInformation($"Location normalized to: {location}");
                         }
                     }
                 }
@@ -360,42 +387,74 @@ stop = new[] { "\n\n", "}" + "\n", "```" }
                     {
                         cleanedFilters["need_type"] = needType;
                         hasValidFilter = true;
+                        _logger.LogInformation($"Need type set to: {needType}");
                     }
                 }
             }
 
-            // معالجة المبالغ
-            if (filters.ContainsKey("amount_less_than") && filters["amount_less_than"].ValueKind == JsonValueKind.Number)
+            // ✅ معالجة محسنة للمبالغ
+            if (filters.ContainsKey("amount_less_than"))
             {
-                if (filters["amount_less_than"].TryGetDecimal(out decimal lessValue) && lessValue > 0 && lessValue <= 1000000)
+                if (filters["amount_less_than"].ValueKind == JsonValueKind.Number)
                 {
-                    cleanedFilters["amount_less_than"] = lessValue;
-                    hasValidFilter = true;
+                    if (filters["amount_less_than"].TryGetDecimal(out decimal lessValue) && lessValue > 0 && lessValue <= 1000000)
+                    {
+                        cleanedFilters["amount_less_than"] = (int)lessValue;
+                        hasValidFilter = true;
+                        _logger.LogInformation($"Amount less than set to: {lessValue}");
+                    }
+                }
+                else if (filters["amount_less_than"].ValueKind == JsonValueKind.String)
+                {
+                    var strValue = filters["amount_less_than"].GetString();
+                    if (decimal.TryParse(strValue, out decimal lessValue) && lessValue > 0 && lessValue <= 1000000)
+                    {
+                        cleanedFilters["amount_less_than"] = (int)lessValue;
+                        hasValidFilter = true;
+                        _logger.LogInformation($"Amount less than parsed from string: {lessValue}");
+                    }
                 }
             }
 
-            if (filters.ContainsKey("amount_greater_than") && filters["amount_greater_than"].ValueKind == JsonValueKind.Number)
+            if (filters.ContainsKey("amount_greater_than"))
             {
-                if (filters["amount_greater_than"].TryGetDecimal(out decimal greaterValue) && greaterValue >= 0 && greaterValue <= 1000000)
+                if (filters["amount_greater_than"].ValueKind == JsonValueKind.Number)
                 {
-                    cleanedFilters["amount_greater_than"] = greaterValue;
-                    hasValidFilter = true;
+                    if (filters["amount_greater_than"].TryGetDecimal(out decimal greaterValue) && greaterValue >= 0 && greaterValue <= 1000000)
+                    {
+                        cleanedFilters["amount_greater_than"] = (int)greaterValue;
+                        hasValidFilter = true;
+                        _logger.LogInformation($"Amount greater than set to: {greaterValue}");
+                    }
+                }
+                else if (filters["amount_greater_than"].ValueKind == JsonValueKind.String)
+                {
+                    var strValue = filters["amount_greater_than"].GetString();
+                    if (decimal.TryParse(strValue, out decimal greaterValue) && greaterValue >= 0 && greaterValue <= 1000000)
+                    {
+                        cleanedFilters["amount_greater_than"] = (int)greaterValue;
+                        hasValidFilter = true;
+                        _logger.LogInformation($"Amount greater than parsed from string: {greaterValue}");
+                    }
                 }
             }
 
             // التحقق من التعارض في المبالغ
             if (cleanedFilters.ContainsKey("amount_less_than") && cleanedFilters.ContainsKey("amount_greater_than"))
             {
-                var lessValue = (decimal)cleanedFilters["amount_less_than"];
-                var greaterValue = (decimal)cleanedFilters["amount_greater_than"];
+                var lessValue = (int)cleanedFilters["amount_less_than"];
+                var greaterValue = (int)cleanedFilters["amount_greater_than"];
                 if (greaterValue >= lessValue)
                 {
+                    _logger.LogWarning($"Conflicting amounts: greater ({greaterValue}) >= less ({lessValue}), removing both");
                     cleanedFilters.Remove("amount_less_than");
                     cleanedFilters.Remove("amount_greater_than");
                 }
             }
 
-            return hasValidFilter ? JsonSerializer.Serialize(cleanedFilters) : null;
+            var result = hasValidFilter ? JsonSerializer.Serialize(cleanedFilters) : null;
+            _logger.LogInformation($"Validation result: {result ?? "null"}");
+            return result;
         }
         catch (Exception ex)
         {
@@ -403,6 +462,7 @@ stop = new[] { "\n\n", "}" + "\n", "```" }
             return null;
         }
     }
+
 
     // ✅ دالة التحقق من طلبات "Near Me"
     private bool IsNearMeRequest(string location, string originalQuery)
